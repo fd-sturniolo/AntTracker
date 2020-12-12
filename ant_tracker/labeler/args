@@ -1,0 +1,13 @@
+
+ffmpeg -i ../Video16.mp4 -filter:v "crop=390:316:185:73:exact=1" -crf 18 ../Video16c.mp4
+python PreLabeler.py ../Video16c.mp4
+
+
+python PreLabeler.py -r "151,91,395,315" ../Video15.mp4
+ffmpeg -i ../Video15.mp4 -filter:v "crop=394:314:151:91:exact=1" -crf 18 ../Video15c.mp4
+python PreLabeler.py ../Video15c.mp4
+
+
+python PreLabeler.py -r "76,55,466,372" -a 20 ../Video11.mp4
+ffmpeg -i ../Video1.mp4 -filter:v "crop=466:372:76:55:exact=1" -crf 18 ../Video1c.mp4
+python PreLabeler.py -a 20 ../Video1c.mp4

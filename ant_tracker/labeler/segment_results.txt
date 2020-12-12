@@ -1,0 +1,47 @@
+Noche:
+    File: noche.mp4 - Method: mediana
+    Number of frames: 470
+    Time elapsed: 82.156250 seconds
+    mask.shape (372, 466)
+
+    File: noche.mp4 - Method: mog2
+    Number of frames: 470
+    Time elapsed: 50.500000 seconds
+    mask.shape (372, 466)
+
+    File: noche.mp4 - Method: gsoc
+    Number of frames: 470
+    Time elapsed: 74.031250 seconds
+    mask.shape (372, 466)
+
+Día:
+    File: dia.mp4 - Method: mediana
+    Number of frames: 888
+    Time elapsed: 112.984375 seconds
+    mask.shape (316, 390)
+
+    File: dia.mp4 - Method: mog2
+    Number of frames: 888
+    Time elapsed: 58.062500 seconds
+    mask.shape (316, 390)
+
+    File: dia.mp4 - Method: gsoc
+    Number of frames: 888
+    Time elapsed: 93.984375 seconds
+    mask.shape (316, 390)
+
+Día2:
+    File: dia2.mp4 - Method: mediana
+    Number of frames: 873
+    Time elapsed: 135.015625 seconds
+    mask.shape (314, 394)
+
+    File: dia2.mp4 - Method: mog2
+    Number of frames: 873
+    Time elapsed: 53.906250 seconds
+    mask.shape (314, 394)
+
+    File: dia2.mp4 - Method: gsoc
+    Number of frames: 873
+    Time elapsed: 94.781250 seconds
+    mask.shape (314, 394)

@@ -1,0 +1,30 @@
+/*Use the # and the name of the variable to access to a specific the Control*/
+
+/* #_player {
+    min-height: 20em;
+} */
+/* QPushButton{
+    padding: 1px;
+} */
+/* QTableWidget::item{ background-color: blue } */
+QTableWidget::item:selected{
+    background-color: lightgray;
+}
+QToolTip {
+    background-color: black;
+    color: white;
+    border: black solid 1px;
+}
+
+#_unlabelwarn::text {
+    color: crimson;
+}
+
+/* QTableWidget { width: 100%; }
+#_objectlist { max-width: 100%; } */
+/* #_player {
+    min-width: 1200px;
+} */
+/* QFrame::geometry{
+    padding: 50px
+} */
