@@ -1,4 +1,6 @@
 import sys  # for progress bar
+import cv2 as cv
+import numpy as np
 
 from .classes import *
 
@@ -218,6 +220,7 @@ def labelVideo(file, metodo="mog2", roi=None, historia=50, ant_thresh=50, sheet_
     return
 
 if __name__ == '__main__':
+    from pathlib import Path
     import os
 
     def valid_roi(string):

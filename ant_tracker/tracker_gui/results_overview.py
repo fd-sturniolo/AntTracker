@@ -63,7 +63,7 @@ def open_labeler(trkfile):
     resp = sg.Window("No disponible", exp_layout,
                      icon=C.LOGO_AT_ICO, modal=True, keep_on_top=True).read(close=True)[0]
     if resp == 'Sí':
-        from trkviz import trkviz_subprocess
+        from .trkviz import trkviz_subprocess
         trkviz_subprocess(trkfile)
 
 def filter_func(info: TracksCompleteInfo):

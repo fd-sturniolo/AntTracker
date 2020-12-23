@@ -7,6 +7,9 @@ from AnyQt.QtWidgets import (QAbstractItemView, QComboBox, QDialogButtonBox, QGr
 from confapp import conf
 from pyforms.controls import ControlBase, ControlList, ControlPlayer, ControlFile, ControlLabel
 
+from .classes import *
+from confapp import conf
+
 class ColorIcon:
     def __init__(self, r=None, g=None, b=None):
         icon = QPixmap(15, 15)  # 15px

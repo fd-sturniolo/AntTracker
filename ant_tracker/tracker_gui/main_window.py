@@ -52,14 +52,23 @@ def main():
     sg.theme(C.THEME)
     with LoadingWindow():
         sys.excepthook = make_excepthook(Path.cwd())
+
+        # import a few modules:
+        # 1. to import as much as we can while a loading window is up;
+        # 2. to fix the exe hanging while importing certain modules
         import matplotlib  # matplotlib is imported by pims by default
 
         matplotlib.use('agg')  # we set agg to avoid it using tk and risk multithreading issues
         print("loaded: ", matplotlib)
-
         import pims
 
         print("loaded: ", pims)
+        from scipy import stats
+
+        print("loaded: ", stats)
+        from filterpy.stats import stats
+
+        print("loaded: ", stats)
         from ..tracker import tracking
 
         print("loaded: ", tracking)
