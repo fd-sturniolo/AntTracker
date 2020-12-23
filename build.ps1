@@ -28,6 +28,13 @@ Ejemplo:
     exit
 }
 
+if !(Test-Path .\.env_info) {
+    Write-Host "
+Cree los environments primero: ver create-env.ps1
+    "
+    exit
+}
+
 foreach ($line in $(Get-Content -Path .\.env_info)) {
     if ($line.StartsWith("tracker")) {
         $tracker_env = $line.Split(":")[1]
