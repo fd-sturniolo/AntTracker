@@ -47,14 +47,20 @@ def _get_mask(frame: GrayscaleImage, last_frames: List[GrayscaleImage], *, param
 
 def _get_blobs_in_frame_with_steps_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters,
                                         prev_blobs: List[Blob]):
-    if not movement_mask.any():
+    def empty():
         return [], np.zeros_like(frame, dtype=float), \
                np.zeros_like(frame, dtype=float), \
                np.zeros_like(frame, dtype=float), \
                np.zeros_like(frame, dtype=bool), \
-               np.zeros_like(frame, dtype='uint8'),
+               np.zeros_like(frame, dtype='uint8')
+
+    if not movement_mask.any():
+        return empty()
     gauss = skfilters.gaussian(frame, sigma=params.gaussian_sigma)
     log = skfilters.laplace(gauss, mask=movement_mask)
+
+    if not log.any():
+        return empty()
 
     t = skfilters.threshold_isodata(log)
     threshed_log = log.copy()
