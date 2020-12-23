@@ -13,22 +13,24 @@ y se compone de un módulo `ant_tracker` con tres submódulos:
 
 El script `create-env.ps1` le ayudará a crear los environments.
 
-Necesitará:
+#### Requerimientos
 - `git`
 - `conda` (Miniconda o Anaconda)
 - Binarios de `ffmpeg-dev` o `ffmpeg-shared`.
     - Puede conseguir binarios compilados para Windows en http://acyun.org/ o https://ottverse.com/ffmpeg-builds/
     - De otra manera, deberá compilar [desde la fuente](https://ffmpeg.org). Buena suerte.
 
-Luego:
+#### Setup & Compilación
 ```powershell
-git clone https://github.com/fd-sturniolo/anttracker.git [DIRECTORIO]
-cd [DIRECTORIO]
-.\create-env [NOMBRE_ENV_TRACKER] [NOMBRE_ENV_LABELER] [DIR_FFMPEG]
+git clone "https://github.com/fd-sturniolo/AntTracker.git"
+cd AntTracker
+.\create-env NOMBRE_ENV_TRACKER NOMBRE_ENV_LABELER DIR_FFMPEG
 .\build -All
 ```
 
-Actualmente la carpeta generada dist/AntTracker se empaqueta en un instalador con 
+#### Distribución
+
+Actualmente la carpeta generada `dist/AntTracker` se empaqueta en un instalador con 
 [InstallSimple](http://installsimple.com/). El ejecutable requiere instalar el 
 [paquete Visual C++ Redistributable](https://www.microsoft.com/es-es/download/details.aspx?id=48145).
 A futuro, se empaquetará mediante [NSIS](https://nsis.sourceforge.io/Main_Page) 
