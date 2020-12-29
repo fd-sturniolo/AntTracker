@@ -28,7 +28,7 @@ Ejemplo:
     exit
 }
 
-if !(Test-Path .\.env_info) {
+if (!(Test-Path .\.env_info)) {
     Write-Host "
 Cree los environments primero: ver create-env.ps1
     "
