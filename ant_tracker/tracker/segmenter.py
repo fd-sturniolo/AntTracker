@@ -65,7 +65,7 @@ def _get_blobs_in_frame_with_steps_logw(frame: GrayscaleImage, movement_mask: Bi
     try:
         t = skfilters.threshold_isodata(log)
     except IndexError:
-        print("Umbralizado fallido (no había bordes significativos en las regiones en movimiento. Salteando frame")
+        print("Umbralizado fallido (no había bordes significativos en las regiones en movimiento). Salteando frame")
         return empty()
     threshed_log = log.copy()
     threshed_log[threshed_log > t] = 0
