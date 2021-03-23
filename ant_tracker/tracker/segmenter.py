@@ -186,7 +186,7 @@ class Segmenter:
     @property
     def is_finished(self):
         if not self.__frames_with_blobs: return False
-        segmented_all_frames = eq_gen_it(self.__frames_with_blobs.values(), range(self.video_length))
+        segmented_all_frames = eq_gen_it(self.__frames_with_blobs.keys(), range(self.video_length))
         return segmented_all_frames
 
     @property
@@ -219,7 +219,7 @@ class Segmenter:
         """Continuar segmentando desde el último frame segmentado."""
         yield from self.segment_rolling_from(max(self.__frames_with_blobs) + 1)
 
-    def segment_rolling_from(self, frame_n: FrameNumber, prev_blobs: Blobs = None):
+    def segment_rolling_from(self, from_frame_n: FrameNumber, prev_blobs: Blobs = None):
         """Segmentar desde un frame en particular. Bajo operación normal, ``prev_blobs`` debe ser None.
         Pueden ocurrir estas situaciones:
 
@@ -232,28 +232,31 @@ class Segmenter:
         """
         if self.__video is None:
             raise ValueError("Este segmentador no tiene un video cargado. Use set_video()")
-        if frame_n < 0 or frame_n >= self.video_length:
-            raise ValueError(f"Frame {frame_n} inexistente")
-        if frame_n == 0:
+        if from_frame_n < 0 or from_frame_n >= self.video_length:
+            raise ValueError(f"Frame {from_frame_n} inexistente")
+        if from_frame_n == 0:
             prev_blobs = []
-        elif self.__frames_with_blobs and (frame_n - 1) in self.__frames_with_blobs:
-            prev_blobs = self.__frames_with_blobs[frame_n - 1]
+        elif self.__frames_with_blobs and (from_frame_n - 1) in self.__frames_with_blobs:
+            prev_blobs = self.__frames_with_blobs[from_frame_n - 1]
         elif prev_blobs is None:
-            raise ValueError(f"Debe proporcionar los blobs del frame anterior ({frame_n - 1}): "
+            raise ValueError(f"Debe proporcionar los blobs del frame anterior ({from_frame_n - 1}): "
                              "puede obtenerlos a partir del Tracker "
                              "si se dispone de él, o bien proporcionar una lista vacía "
                              "(corriendo el riesgo de perder reproducibilidad)")
-        n = min(self.params.movement_detection_history, frame_n)
-        self.__last_frames = [rgb2gray(f) for f in self.__video[frame_n - n:frame_n]] if frame_n != 0 else []
-        for frame_n, frame in enumerate(self.__video[frame_n:], frame_n):
-            gray_frame = rgb2gray(frame)
-            mask = self._get_mask(gray_frame)
-            blobs = self._get_blobs(gray_frame, mask, prev_blobs)
-            self.__cycle_last_frames(gray_frame)
-            self.__frames_with_blobs[frame_n] = blobs
-            self.__prev_blobs = (frame_n, blobs)
-            prev_blobs = blobs
-            yield frame_n, blobs
+        n = min(self.params.movement_detection_history, from_frame_n)
+        self.__last_frames = [rgb2gray(f) for f in self.__video[from_frame_n - n:from_frame_n]] if from_frame_n != 0 else []
+        for frame_n, frame in enumerate(self.__video[from_frame_n:], from_frame_n):
+            if frame_n in self.__frames_with_blobs:
+                yield frame_n, self.__frames_with_blobs[frame_n]
+            else:
+                gray_frame = rgb2gray(frame)
+                mask = self._get_mask(gray_frame)
+                blobs = self._get_blobs(gray_frame, mask, prev_blobs)
+                self.__cycle_last_frames(gray_frame)
+                self.__frames_with_blobs[frame_n] = blobs
+                self.__prev_blobs = (frame_n, blobs)
+                prev_blobs = blobs
+                yield frame_n, blobs
 
     @property
     def frames_with_blobs(self) -> Generator[Tuple[FrameNumber, Blobs], None, None]:
