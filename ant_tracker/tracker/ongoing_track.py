@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from filterpy.kalman import KalmanFilter
+from filterpy.common import Q_discrete_white_noise
 from typing import Optional, Tuple, List, Dict, TypedDict, Union
 
 from .blob import Blob
@@ -15,14 +16,11 @@ def kalman_filter_init(sample_rate=1):
     dt = sample_rate
     # Measurement noise (pretty low, b/c segmentation is fairly high fidelity)
     kf.R = np.array([[1, 0],
-                     [0, 1]]) * .01
-    # Process noise (from Taylor expansion?)
-    kf.Q = np.array([[dt ** 4 / 4, 0, dt ** 3 / 2, 0],
-                     [0, dt ** 4 / 4, 0, dt ** 3 / 2],
-                     [dt ** 3 / 2, 0, dt ** 2, 0],
-                     [0, dt ** 3 / 2, 0, dt ** 2]]) * 10
+                     [0, 1]])
+    # Process noise
+    kf.Q = Q_discrete_white_noise(2,dt,20,block_size=2,order_by_dim=False)
     # Initial estimate variance
-    kf.P = kf.Q.copy()
+    kf.P *= 100
     # State update/transition matrix
     kf.F = np.array([[1, 0, dt, 0],  # x = x_0 + dt*v_x
                      [0, 1, 0, dt],  # y = y_0 + dt*v_y
@@ -87,8 +85,7 @@ class OngoingTrack(Track):
             raise ValueError(f'Cannot predict on {self}. update() first')
         if self.closed:
             raise ValueError(f'Cannot predict on {self}. Track closed')
-        u_ = self.random_state.rand(2, 1)
-        self.kf.predict(u=u_ * self.a_sigma)
+        self.kf.predict()
         self.can_predict = False
         return self.x
 
@@ -108,7 +105,7 @@ class OngoingTrack(Track):
                 return
             # lower velocity estimate, probably a collision
             self.kf.x[2:4] = self.kf.x[2:4] * self.a_sigma
-            self.kf.update((self.kf.x[0:2] - self.kf.x[2:4]).T)
+            self.kf.update((self.kf.x[0:2] + self.kf.x[2:4]).T)
             newblob = self.at(frame - 1).new_moved_to(self.kf.x[0:2, :], self.imshape)
             self.__add_blob(frame, newblob)
             self.frames_lost += 1
