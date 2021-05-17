@@ -67,6 +67,7 @@ class AntLabeler(BaseWidget):
         self._erasebutton = ControlButton('Borrar (T)')
         self._fillbutton = ControlButton('Rellenar (Y)')
         self._unlerasebutton = ControlButton('Borrar todas las regiones sin etiquetar del cuadro')
+        self._totalerasebutton = ControlButton('Borrar etiquetas de todo el video')
         self._autofillcheck = ControlCheckBox('Rellenado a futuro (U)', helptext=AUTOFILL_HELP,
                                               default=True if DEBUG else False)
         self._labelscheck = ControlCheckBox('Esconder n°s y hojas (N)', default=True)
@@ -99,7 +100,7 @@ class AntLabeler(BaseWidget):
                 [
                     '_radslider',
                     ('_drawbutton', '_erasebutton', '_fillbutton',),
-                    '_unlerasebutton',
+                    ('_unlerasebutton', '_totalerasebutton'),
                     '_autofillcheck',
                     ('_maskcheck', '_labelscheck'),
                     '_objectlist',
@@ -131,6 +132,7 @@ class AntLabeler(BaseWidget):
         self._erasebutton.value = self.__eraseEvent
         self._fillbutton.value = self.__fillEvent
         self._unlerasebutton.value = self.__eraseUnlabeled
+        self._totalerasebutton.value = self.__totalEraseEvent
         self._radslider.changed_event = self.__radiusChange
         self._player.process_frame_event = self.__process_frame
         self._player.before_frame_change = self.__before_frame_change
@@ -502,6 +504,19 @@ class AntLabeler(BaseWidget):
             self.should_save = True
             self._player.refresh()
 
+    def __totalEraseEvent(self):
+        if QMessageBox().question(self,
+                                  "Borrar regiones sin etiquetar",
+                                  "¿Está seguro de que quiere borrar todas las regiones"
+                                    "sin etiquetar de todo el video?",
+                                  QMessageBox.Yes, QMessageBox.No) == QMessageBox.Yes:
+                for i in range(self._player.max):
+            	    self.antCollection.deleteUnlabeledFrame(i)
+                self.colored_mask[self.colored_mask == -1] = 0
+                self.should_save = True
+                self._player.refresh()
+
+
     def __radiusChange(self):
         self.draw_radius = self._radslider.value
 
@@ -758,6 +773,8 @@ class AntLabeler(BaseWidget):
             self.__eraseEvent()
         if key == QtCore.Qt.Key_Y:
             self.__fillEvent()
+        if key == QtCore.Qt.Key_B:
+            self.__totalEraseEvent()
         if key == QtCore.Qt.Key_U:
             self._autofillcheck.value = not self._autofillcheck.value
         if key == QtCore.Qt.Key_M:
