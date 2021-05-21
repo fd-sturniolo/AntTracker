@@ -10,13 +10,13 @@ def check_env(module: Literal['tracker', 'labeler']):
             if env_info_file.exists():
                 break
         else:
-            raise ValueError("Debe generar un conda env con environment-create.bat")
+            raise ValueError("Debe generar un conda env con create-env.ps1")
         needed_env = [line.split(':')[1] for line in env_info_file.read_text().split("\n") if line.startswith(module)]
         if not needed_env:
-            raise ValueError("Debe generar un conda env con environment-create.bat")
+            raise ValueError("Debe generar un conda env con create-env.ps1")
         needed_env = needed_env[0]
         import os
         current_env = os.environ['CONDA_DEFAULT_ENV']
         if needed_env != current_env:
             raise ValueError(f"Sólo ejecutar este archivo en el conda-env "
-                             f"generado por environment-create.bat ({needed_env})")
+                             f"generado por create-env.ps1 ({needed_env})")
