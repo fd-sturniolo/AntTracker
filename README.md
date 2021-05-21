@@ -17,7 +17,7 @@ El script `create-env.ps1` le ayudará a crear los environments.
 - `git`
 - `conda` (Miniconda o Anaconda)
 - Binarios de `ffmpeg-dev` o `ffmpeg-shared`.
-    - Puede conseguir binarios compilados para Windows en http://acyun.org/ o https://ottverse.com/ffmpeg-builds/
+    - Puede conseguir binarios compilados para Windows en https://ottverse.com/ffmpeg-builds/
     - De otra manera, deberá compilar [desde la fuente](https://ffmpeg.org). Buena suerte.
 
 #### Setup & Compilación
@@ -27,6 +27,8 @@ cd AntTracker
 .\create-env NOMBRE_ENV_TRACKER NOMBRE_ENV_LABELER DIR_FFMPEG
 .\build -All
 ```
+
+Los `.exe` generados se encuentran luego en la carpeta `dist`.
 
 #### Distribución
 
