@@ -41,6 +41,7 @@ Ejemplo:
     exit
 }
 
+## TODO: chequear de alguna forma más robusta si con la carpeta provista se puede buildear PyAV
 if (-not $(Test-Path $ffmpeg_dir"\lib\avcodec.lib")) {
     Write-Host "El directorio $ffmpeg_dir no contiene los archivos necesarios."
     Write-Host "
@@ -74,6 +75,7 @@ try {
     Set-Location ../..
     Remove-Item -Recurse -Force temp
 
+    # mandar las libs a la carpeta lib del environment
     Write-Output (get-item lib).ToString() > ($env:CONDA_PREFIX+'\lib\site-packages\ants.pth')
 
 
@@ -89,9 +91,12 @@ try {
     $to = (get-item $(get-command python).Source ).DirectoryName+'\Lib\site-packages'
     Copy-Item ant_tracker\labeler\pyforms_patch\pyforms_gui -Destination $to -Recurse -Force
 
+    # mandar las libs a la carpeta lib del environment
     Write-Output (Get-Item lib).ToString() > ($env:CONDA_PREFIX+'\lib\site-packages\ants.pth')
     #|| goto error
 
+    # poner los nombres de los env en .env_info, después check_env.py se fija ahí
+    # si el env correcto está activado
     Write-Output tracker:$tracker_env_name, labeler:$labeler_env_name > .env_info
 
     Write-Host "Finalizado. Sus environments son:" -ForegroundColor Green
@@ -105,6 +110,7 @@ catch {
     conda activate base
     Set-Location $CWD
     Remove-Item -Recurse -Force -ErrorAction Ignore temp
+    Remove-Item -Force -ErrorAction Ignore .env_info
     conda remove --name $tracker_env_name --all -y *>$null
     conda remove --name $labeler_env_name --all -y *>$null
     exit
