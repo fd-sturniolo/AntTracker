@@ -2,11 +2,6 @@
 
 import os
 
-from pathlib import Path
-
-os.environ['PATH'] = str(Path("lib").resolve()) + os.pathsep + os.environ['PATH']
-print(os.environ['PATH'])
-
 console = True
 upx = False
 upx_exclude = ['ucrtbase.dll', 'VCRUNTIME140.dll']
@@ -16,7 +11,6 @@ datas = [
     ('ant_tracker/tracker_gui/images', 'images'),
 ]
 
-# binaries = [(dll, '.') for dll in glob.glob("lib/*.dll")]
 binaries = []
 
 block_cipher = None

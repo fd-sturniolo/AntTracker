@@ -6,7 +6,7 @@ future==0.18.2
 memoized-property==1.0.3
 natsort==7.0.1
 numpy==1.18.5
-opencv-contrib-python-headless==4.5.1.48
+opencv-python-headless==4.5.1.48
 packaging==20.4
 pefile==2019.4.18
 pyinstaller==4.0

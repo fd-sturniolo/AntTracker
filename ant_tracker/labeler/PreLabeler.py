@@ -97,7 +97,11 @@ def labelVideo(file, metodo="mog2", roi=None, historia=50, ant_thresh=50, sheet_
         if metodo == "mog2":
             subt = cv.createBackgroundSubtractorMOG2(detectShadows=False, history=historia)
         if metodo == "gsoc":
-            subt = cv.bgsegm.createBackgroundSubtractorGSOC(replaceRate=0.0002 * historia)
+            try:
+                subt = cv.bgsegm.createBackgroundSubtractorGSOC(replaceRate=0.0002 * historia)
+            except Exception as e:
+                print("Desinstalar opencv-python-headless e instalar opencv-contrib-python-headless")
+                raise e
         while video.isOpened():
             ret, frame = video.read()
             if ret == 0:
