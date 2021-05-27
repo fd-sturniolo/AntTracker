@@ -1,4 +1,5 @@
 altgraph==0.17
+av==8.0.3
 certifi==2020.6.20
 cycler==0.10.0
 decorator==4.4.2
