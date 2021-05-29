@@ -35,7 +35,7 @@ Ejemplo:
 
 try {
     $CWD=$(get-item .)
-
+    #############################################################################
     ## AntTracker:
     Write-Host "Creando env: " $tracker_env_name -ForegroundColor Green
     conda create --name $tracker_env_name python=3.8 -y
@@ -43,10 +43,7 @@ try {
 
     pip install -r requirements-tracker.txt
 
-    # mandar las libs a la carpeta lib del environment
-    Write-Output (get-item lib).ToString() > ($env:CONDA_PREFIX+'\lib\site-packages\ants.pth')
-
-
+    #############################################################################
     ## AntLabeler:
     Write-Host "Creando env: " $labeler_env_name -ForegroundColor Green
     conda create --name $labeler_env_name python=3.8 -y
@@ -59,10 +56,7 @@ try {
     $to = (get-item $(get-command python).Source ).DirectoryName+'\Lib\site-packages'
     Copy-Item ant_tracker\labeler\pyforms_patch\pyforms_gui -Destination $to -Recurse -Force
 
-    # mandar las libs a la carpeta lib del environment
-    Write-Output (Get-Item lib).ToString() > ($env:CONDA_PREFIX+'\lib\site-packages\ants.pth')
-    #|| goto error
-
+    #############################################################################
     # poner los nombres de los env en .env_info, después check_env.py se fija ahí
     # si el env correcto está activado
     Write-Output tracker:$tracker_env_name, labeler:$labeler_env_name > .env_info
