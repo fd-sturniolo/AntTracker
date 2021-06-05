@@ -1,58 +1,35 @@
 param (
     [Alias("h")]
     [switch]
-    $help=$false,
-
-    [switch]
-    $Labeler=$false,
-    [switch]
-    $Tracker=$false,
-    [switch]
-    $All=$false
+    $help=$false
 )
 
-$invalid_call = $(!$($Labeler -xor $Tracker -xor $All))
-
-if ($help -or $invalid_call) {
+if ($help) {
     Write-Host "
-Compila AntTracker, AntLabeler, o ambos y empaqueta AntLabeler dentro de AntTracker.
-
-Usar una de las siguientes flags:
-    -Labeler
-    -Tracker
-    -All
-
-Ejemplo:
-./build.ps1 -All
+Compila AntTracker y AntLabeler.
     "
     exit
 }
 
 if (!(Test-Path .\.env_info)) {
     Write-Host "
-Cree los environments primero: ver create-env.ps1
+Cree el environment primero: ver create-env.ps1
     "
     exit
 }
 
 foreach ($line in $(Get-Content -Path .\.env_info)) {
     if ($line.StartsWith("tracker")) {
-        $tracker_env = $line.Split(":")[1]
+        $env = $line.Split(":")[1]
     }
-    if ($line.StartsWith("labeler")) {
-        $labeler_env = $line.Split(":")[1]
+    else {
+        Write-Host "
+Hay un error con el environment. Chequee $(Get-Item env.log)
+"
+        exit
     }
 }
 
-if ($Labeler -or $All) {
-    conda activate $labeler_env
-    pyinstaller AntLabeler.spec --onedir -y
-}
-if ($Tracker -or $All) {
-    conda activate $tracker_env
-    pyinstaller AntTracker.spec --onedir -y
-}
-if ($All) {
-    python copy_labeler_files.py
-}
-conda activate base
+conda activate $env
+pyinstaller build.spec -y
+conda deactivate

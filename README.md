@@ -2,16 +2,15 @@
 
 ## Instrucciones
 
-El proyecto hace uso de dos environments de `conda` con algunas librerías en común,
-y se compone de un módulo `ant_tracker` con tres submódulos:
+Para configurar el entorno de desarrollo necesitará ejecutar el script `create-env.ps1`.
+Es imperativo que use este script en vez de instalar las dependencias manualmente ya que
+hay post-procesado necesario luego de instalarlas.
 
-| Módulo | Environment|
-|--------|------------|
-|`labeler` |`NOMBRE_ENV_LABELER`|
-|`tracker` |`NOMBRE_ENV_TRACKER`|
-|`tracker_gui`|`NOMBRE_ENV_TRACKER`|
+El proyecto se compone de un módulo `ant_tracker` con tres submódulos:
 
-El script `create-env.ps1` le ayudará a crear los environments.
+- `labeler`
+- `tracker`
+- `tracker_gui`
 
 #### Requerimientos
 - `git`
@@ -21,8 +20,8 @@ El script `create-env.ps1` le ayudará a crear los environments.
 ```powershell
 git clone "https://github.com/fd-sturniolo/AntTracker.git"
 cd AntTracker
-.\create-env NOMBRE_ENV_TRACKER NOMBRE_ENV_LABELER
-.\build -All
+.\create-env NOMBRE_ENV
+.\build
 ```
 
 Los `.exe` generados se encuentran luego en la carpeta `dist`.
