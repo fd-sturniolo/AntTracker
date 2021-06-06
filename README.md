@@ -32,11 +32,6 @@ Actualmente la carpeta generada `dist/AntTracker` se empaqueta en un instalador 
 [InstallSimple](http://installsimple.com/). El ejecutable requiere instalar el
 [paquete Visual C++ Redistributable](https://www.microsoft.com/es-es/download/details.aspx?id=48145).
 
-## TODO
-
-- Implementar distribución mediante [NSIS](https://nsis.sourceforge.io/Main_Page) con instalación automática del Redist.
-- Mejorar versionado de módulos
-
 ## Información
 
 Desarrollado durante 2019-2020 por Francisco Daniel Sturniolo,
