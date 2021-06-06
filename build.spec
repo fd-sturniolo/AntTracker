@@ -8,11 +8,12 @@ interpreter_options = [
 pyinstaller_debug = False
 
 
-tracker_a = Analysis(
+tracker_a = Analysis( # pylance: ignore
     ['tracker_main.py'],
     pathex=[],
     binaries=[],
     datas=[
+        ('VERSION', '.'),
         ('ant_tracker/tracker_gui/model.tflite', '.'),
         ('ant_tracker/tracker_gui/images', 'images'),
     ],

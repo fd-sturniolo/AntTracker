@@ -1,6 +1,9 @@
 # AntTracker
 
-## Instrucciones
+## Instalación
+Busque el instalador para la última versión en la [sección Releases](https://github.com/fd-sturniolo/AntTracker/releases).
+
+## Desarrollo
 
 Para configurar el entorno de desarrollo necesitará ejecutar el script `create-env.ps1`.
 Es imperativo que use este script en vez de instalar las dependencias manualmente ya que
@@ -12,25 +15,29 @@ El proyecto se compone de un módulo `ant_tracker` con tres submódulos:
 - `tracker`
 - `tracker_gui`
 
-#### Requerimientos
+### Requerimientos
 - `git`
 - `conda` (Miniconda o Anaconda)
+- [`MakeNSIS`](https://nsis.sourceforge.io/Download) (para construir el instalador)
 
-#### Setup & Compilación
+### Setup & Compilación
 ```powershell
 git clone "https://github.com/fd-sturniolo/AntTracker.git"
 cd AntTracker
 .\create-env NOMBRE_ENV
-.\build
+conda activate NOMBRE_ENV
+.\build                     # Compila los ejecutables a dist/AntTracker
+MakeNSIS make_installer.nsi # Crea el instalador
 ```
 
-Los `.exe` generados se encuentran luego en la carpeta `dist`.
+### Nuevas versiones
 
-#### Distribución
+Para incrementar el número de versión del software deberá usar [`bump2version`](https://github.com/c4urself/bump2version) (el cual se instala automáticamente en el environment de desarrollo).
+El siguiente comando aumenta la versión `major`/`minor`/`patch` del software e instalador:
 
-Actualmente la carpeta generada `dist/AntTracker` se empaqueta en un instalador con
-[InstallSimple](http://installsimple.com/). El ejecutable requiere instalar el
-[paquete Visual C++ Redistributable](https://www.microsoft.com/es-es/download/details.aspx?id=48145).
+```powershell
+bump2version [major/minor/patch]
+```
 
 ## Información
 
