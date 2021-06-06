@@ -11,8 +11,7 @@ from .ongoing_track import OngoingTrack
 from .parameters import TrackerParameters, SegmenterParameters
 from .segmenter import Blobs, Segmenter, LogWSegmenter
 from .track import Track, TrackId
-
-TrackerVersion = Version('2.0.2dev1')
+from ..version import __version__
 
 BlobIndex = NewType('BlobIndex', int)
 Assignment = Tuple[TrackId, BlobIndex]
@@ -22,7 +21,7 @@ class Tracker:
     def __init__(self, video_path: Union[Path, str], segmenter: Segmenter = None, *,
                  params: TrackerParameters = TrackerParameters(use_defaults=True)):
         self.video_path = video_path
-        self.version = TrackerVersion
+        self.version = __version__
         self.__tracks: Optional[List[Track]] = None
         self.params = params
         if segmenter is None:  # from deserialization
@@ -488,9 +487,8 @@ class Tracker:
         if not self.is_finished: raise ValueError('track() first!')
         return TracksInfo(
             video_path=self.video_path,
-            segmenter_version=self.segmenter.version,
+            version=self.version,
             segmenter_parameters=self.segmenter.params,
-            tracker_version=self.version,
             tracker_parameters=self.params,
             tracks=self.tracks,
         )

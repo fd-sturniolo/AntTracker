@@ -185,7 +185,7 @@ class AntLabeler(BaseWidget):
             print(__vid.getBackendName())
             vshape = (int(__vid.get(cv.CAP_PROP_FRAME_HEIGHT)), int(__vid.get(cv.CAP_PROP_FRAME_WIDTH)))
             vlen = int(__vid.get(cv.CAP_PROP_FRAME_COUNT))
-            fps = __vid.get(cv.CAP_PROP_FPS)
+            self._fps = __vid.get(cv.CAP_PROP_FPS)
             __vid.release()
         else:
             raise CancelingException("%s no es un video válido" % self._videofile.value)
@@ -197,14 +197,16 @@ class AntLabeler(BaseWidget):
         default_tagfile = splitext(self._videofile.value)[0] + ".tag"
         # self._tagfile.value = default_tagfile
         self._tagfile.click()
-        bkp = self._tagfile.value[:-4] + "-backup.tag"
+        #TODO: #9
+        self._bkp = self._tagfile.value[:-4] + "-backup.tag"
         try:
             self.antCollection = AntCollection.deserialize(video_path=self._videofile.value,
                                                            filename=self._tagfile.value)
-            if self.antCollection.version < Version("2.0"):
+            if self.antCollection._old_version < Version("2.0"):
                 from shutil import copy2
-                copy2(self._tagfile.value, bkp)
-        except:  # noqa
+                copy2(self._tagfile.value, self._bkp)
+        except Exception as e:  # noqa
+            print(e)
             print("%s no es un archivo de etiquetas válido, generando uno" % self._tagfile.value)
             questionDialog = ResolutionDialog("Pre-etiquetado")
             if not questionDialog.exec_(): raise CancelingException("Creación de archivo de etiquetas cancelada.")
@@ -243,11 +245,16 @@ class AntLabeler(BaseWidget):
                              % (self._videofile.value, str(vshape), self._tagfile.value,
                                 str(self.antCollection.videoShape)))
         self.number_of_frames = vlen
-        if self.antCollection.version < Version("1.1"):
+        self.update_collection_version()
+
+    def update_collection_version(self):
+        #TODO: #9
+        vlen = self.number_of_frames
+        if self.antCollection._old_version < Version("1.1"):
             print("Cleaning v1 errors")
-            self.antCollection.cleanErrors(self.number_of_frames)
-        if self.antCollection.version < Version("2.0"):
-            self.antCollection.videoLength = vlen
+            self.antCollection.cleanErrors(vlen)
+        if self.antCollection._old_version < Version("2.0"):
+            self.antCollection.videoLength = self._bkp
             last_frame_w_ant = self.antCollection.getLastLabeledFrame()
             if last_frame_w_ant < self.antCollection.videoLength - 1:
                 questionDialog = ResolutionDialog(f"Reprocesar frames faltantes (desde el {last_frame_w_ant})")
@@ -257,7 +264,7 @@ class AntLabeler(BaseWidget):
                     def msg(f):
                         return f"Reprocesando frame {f}/{vlen - 1}...\n" \
                                f"Un backup del archivo original se encuentra en\n" \
-                               f"{bkp}"
+                               f"{self._bkp}"
 
                     progress = QProgressDialog(msg(last_frame_w_ant + 1), "Cancelar", 0, vlen - last_frame_w_ant + 1,
                                                self)
@@ -275,16 +282,13 @@ class AntLabeler(BaseWidget):
                         if progress.wasCanceled():
                             raise CancelingException("Actualización de archivo de etiquetas cancelada.")
                     progress.setValue(vlen - last_frame_w_ant + 1)
-        if self.antCollection.version < Version("2.1"):
-            self.antCollection.info.video_fps_average = fps
+        if self.antCollection._old_version < Version("2.1"):
+            self.antCollection.info.video_fps_average = self._fps
         self.antCollection.version = CollectionVersion
-        self.antCollection.info.labeler_version = CollectionVersion
+        self.antCollection.info.version = CollectionVersion
 
     def closeEvent(self, event):
         print("saving...")
-        if self.antCollection.version < Version("1.1"):
-            print("Cleaning v1 errors")
-            self.antCollection.cleanErrors(self.number_of_frames)
         self.should_save = True
         self.__saveFrame(self.currentFrame, pretty=True)
 

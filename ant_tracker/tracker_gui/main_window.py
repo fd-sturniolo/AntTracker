@@ -1,12 +1,13 @@
 import PySimpleGUI as sg
 import sys
 from pathlib import Path
+from packaging.utils import canonicalize_version
 
 from . import constants as C
 from .about import about
 from .excepthook import make_excepthook
 from .guicommon import align, Email, ClickableText, write_event_value_closure
-from .version import version
+from ..version import __version__
 
 def title(s):
     return sg.Text(s, font=("Helvetica", 16), justification='center')
@@ -80,7 +81,7 @@ def main():
     layout = [
         [align([
             [sg.Image(C.LOGO_AT)],
-            [title(f"AntTracker v{version}")],
+            [title(f"AntTracker v{canonicalize_version(__version__)}")],
 
             [sg.HorizontalSeparator()],
 
@@ -104,7 +105,7 @@ def main():
             sg.Button("Más información", k='-MORE_INFO-'),
             sg.Button("Abrir carpeta de videos", k='-OPEN_FOLDER-', focus=True)]], 'right')]
     ]
-    win = sg.Window("AntTracker", layout, icon=C.LOGO_AT_ICO, finalize=True)
+    win = sg.Window(f"AntTracker v{canonicalize_version(__version__)}", layout, icon=C.LOGO_AT_ICO, finalize=True)
     ClickableText.bind_all()
     while True:
         event, values = win.read()

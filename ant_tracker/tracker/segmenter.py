@@ -7,7 +7,6 @@ import skimage.measure as skmeasure
 import skimage.morphology as skmorph
 import skimage.segmentation as skseg
 import ujson
-from packaging.version import Version
 from scipy.spatial import cKDTree
 from typing import Any, Dict, Generator, List, Tuple, TypedDict, Sequence
 
@@ -16,7 +15,6 @@ from .common import BinaryMask, ColorImage, GrayscaleImage, ProgressBar, Video, 
     eq_gen_it
 from .parameters import SegmenterParameters, LogWSegmenterParameters, DohSegmenterParameters
 
-SegmenterVersion = Version("2.0.2dev1")
 
 Blobs = List[Blob]
 
@@ -275,16 +273,11 @@ class Segmenter:
         """Usar luego de cargar un segmentador serializado."""
         self.__video = video
 
-    @property
-    def version(self):
-        raise NotImplementedError
-
     class Serial(TypedDict):
         frames_with_blobs: Dict[FrameNumber, List[Blob.Serial]]
         parameters: Dict[str, Any]
         video_length: int
         video_shape: Tuple[int, int]
-        version: str
 
     def encode(self):
         return {
@@ -293,7 +286,6 @@ class Segmenter:
             'parameters':        dict(self.params.items()),
             'video_length':      self.video_length,
             'video_shape':       self.video_shape,
-            'version':           str(self.version)
         }
 
     @classmethod
@@ -328,10 +320,6 @@ class LogWSegmenter(Segmenter):
         if params is None: params = LogWSegmenterParameters()
         super(LogWSegmenter, self).__init__(video, params)
 
-    @property
-    def version(self):
-        return Version('2.0.2dev1')
-
     def _get_blobs(self, gray_frame, mask, prev_blobs):
         return _get_blobs_logw(gray_frame, mask, self.params, prev_blobs)
 
@@ -339,10 +327,6 @@ class DohSegmenter(Segmenter):
     def __init__(self, video: Video = None, params: SegmenterParameters = None):
         if params is None: params = DohSegmenterParameters()
         super(DohSegmenter, self).__init__(video, params)
-
-    @property
-    def version(self):
-        return Version('2.0.2dev2')
 
     def _get_blobs(self, gray_frame, mask, prev_blobs):
         return _get_blobs_doh(gray_frame, mask, self.params)

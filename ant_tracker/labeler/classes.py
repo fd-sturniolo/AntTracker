@@ -16,8 +16,9 @@ from ..tracker.info import TracksInfo
 from ..tracker.kellycolors import KellyColors
 from ..tracker.parameters import SegmenterParameters, TrackerParameters
 from ..tracker.track import Loaded, Track, TrackId
+from ..version import __version__
 
-CollectionVersion = Version("2.1")
+CollectionVersion = Version(__version__)
 
 Color = Tuple[int, int, int]
 BinaryMask = NewType("BinaryMask", np.ndarray)
@@ -289,6 +290,9 @@ class AntCollection:
             self.videoLength = video_length
         self.getUnlabeledMask = self.__getUnlabeledMaskClosure(self.videoShape)
         self.info: LabelingInfo = info
+        # ! versión inexistente mayor a todas las otras, para evitar migraciones
+        # TODO: #9
+        self._old_version = Version("2.2")
         self.version = CollectionVersion
 
     @staticmethod
@@ -352,38 +356,8 @@ class AntCollection:
 
     @staticmethod
     def deserialize(video_path, jsonstring=None, filename=None) -> "AntCollection":
-        if filename is not None:
-            with open(filename, 'r') as file:
-                antDict = ujson.load(file)
-        elif jsonstring is not None:
-            antDict = ujson.loads(jsonstring)
-        else:
-            raise TypeError("Provide either JSON string or filename.")
-        if 'labeler_version' in antDict and Version(antDict['labeler_version']) >= Version("2"):
-            info = LabelingInfo.deserialize(jsonstring=jsonstring, filename=filename)
-            antCollection = AntCollection.from_info(info)
-        else:
-            antCollection = AntCollection(np.zeros(antDict["videoShape"], dtype="uint8"))
-
-            for ant in antDict["ants"]:
-                antCollection.ants.append(Ant.decode(ant, antCollection.videoShape))
-            antCollection.id_iter = itertools.count(start=antCollection.getLastId() + 1)
-
-            antCollection.getUnlabeledMask = \
-                antCollection.__getUnlabeledMaskClosure(antCollection.videoShape)
-            if "version" in antDict:
-                antCollection.version = Version(antDict["version"])
-            else:
-                antCollection.version = Version("1")
-
-            antCollection.info = LabelingInfo(
-                video_path=video_path,
-                ants=antCollection.ants,
-                unlabeled_frames=[
-                    UnlabeledFrame.decode(uF, antCollection.videoShape, antCollection.videoSize)
-                    for uF in antDict["unlabeledFrames"]
-                ],
-            )
+        info = LabelingInfo.deserialize(jsonstring=jsonstring, filename=filename)
+        antCollection = AntCollection.from_info(info)
         return antCollection
 
     def updateAreas(self, frame: int, colored_mask: ColoredMaskWithUnlabel):
@@ -637,7 +611,10 @@ class AntCollection:
         self.ants = [Ant.from_track(track, info.video_shape) for track in info.tracks]
         self.id_iter = itertools.count(start=self.getLastId() + 1)
         self.getUnlabeledMask = self.__getUnlabeledMaskClosure(self.videoShape)
-        self.version = info.labeler_version
+        if info._labeler_version is not None:
+            self._old_version = info._labeler_version
+        else:
+            self.version = info.version
         return self
 
 class SerializableEnum(str, Enum):
@@ -655,8 +632,9 @@ def first(iterable, condition=lambda x: True):
 @dataclass
 class LabelingInfo(TracksInfo):
     unlabeledFrames: List[UnlabeledFrame] = field(init=False)
-    labeler_version: Version = field(init=False)
-    file_extension: ClassVar = '.tag'
+    version: Optional[Version] = field(init=False, default=None)
+    _labeler_version: Optional[Version] = field(init=False, default=None)
+    file_extension: ClassVar[str] = '.tag'
 
     def __init__(self, video_path, ants: List[Ant], unlabeled_frames: List[UnlabeledFrame]):
 
@@ -669,26 +647,33 @@ class LabelingInfo(TracksInfo):
             tracker_parameters=TrackerParameters.mock(),
         )
         self.unlabeledFrames: List[UnlabeledFrame] = [uf for uf in unlabeled_frames if uf.contours]
-        self.labeler_version = CollectionVersion
+        self.version = CollectionVersion
 
     class Serial(TracksInfo.Serial):
         unlabeled_frames: List[UnlabeledFrame.Serial]
-        labeler_version: str
+        labeler_version: Optional[str]
+        version: Optional[str]
 
     def encode(self) -> 'LabelingInfo.Serial':
         return {  # noqa
             **super(LabelingInfo, self).encode(),
             'unlabeled_frames': [uf.encode() for uf in self.unlabeledFrames],
-            'labeler_version':  str(self.labeler_version),
+            'version':  str(self.version),
         }
 
     @classmethod
     def decode(cls, info: 'LabelingInfo.Serial'):
-        labeler_version = Version(info.get('labeler_version', "1.0"))
-        if labeler_version < Version("2.1"):
-            info['tracks'] = _flip_contours_before_2_1(info['tracks'])
+        #TODO: #9
+        version = info.get('version')
+        if not version:
+            labeler_version = Version(info.get('labeler_version', "1.0"))
+            if labeler_version < Version("2.1"):
+                info['tracks'] = _flip_contours_before_2_1(info['tracks'])
         self = super(LabelingInfo, cls).decode(info)
-        self.labeler_version = labeler_version
+        if version:
+            self.version = Version(version)
+        else:
+            self._labeler_version = labeler_version
         size = self.video_shape[0] * self.video_shape[1]
         ufs = [UnlabeledFrame.decode(uf, self.video_shape, size) for uf in info['unlabeled_frames']]
         self.unlabeledFrames = [uf for uf in ufs if uf.contours]

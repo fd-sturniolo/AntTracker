@@ -11,6 +11,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple, TypedDict, Union,
 from .common import FrameNumber, to_json, Side, Rect, filehash, ensure_path, SerializableEnum
 from .parameters import SegmenterParameters, TrackerParameters
 from .track import Track
+from ..version import __version__
 
 class Direction(SerializableEnum):
     EN = "EN"
@@ -24,9 +25,11 @@ class Direction(SerializableEnum):
 class TracksInfo:
     tracks: List[Track] = field(repr=False)
 
-    segmenter_version: Version
+    #! cuidado: cuando se resuelva #8 puede que haya
+    #! un problema con este campo por tener el mismo nombre
+    version: Version
+
     segmenter_parameters: SegmenterParameters
-    tracker_version: Version
     tracker_parameters: TrackerParameters
 
     video_name: str = field(init=False)
@@ -36,7 +39,7 @@ class TracksInfo:
     video_fps_average: float = field(init=False)
     video_path: InitVar[Optional[Union[Path, str]]] = None
 
-    file_extension: ClassVar = '.trk'
+    file_extension: ClassVar[str] = '.trk'
 
     def __post_init__(self, video_path: Optional[Union[Path, str]] = None):
         if video_path is not None:
@@ -142,9 +145,8 @@ class TracksInfo:
     class Serial(TypedDict):
         tracks: List[Track.Serial]
 
-        tracker_version: str
+        version: str
         tracker_parameters: Dict[str, Any]
-        segmenter_version: str
         segmenter_parameters: Dict[str, Any]
         video_name: str
         video_hash: str
@@ -155,9 +157,8 @@ class TracksInfo:
     def encode(self) -> 'TracksInfo.Serial':
         return {
             "tracks":               [track.encode() for track in self.tracks],
-            "tracker_version":      str(self.tracker_version),
+            "version":              str(self.version),
             "tracker_parameters":   dataclasses.asdict(self.tracker_parameters),
-            "segmenter_version":    str(self.tracker_version),
             "segmenter_parameters": dataclasses.asdict(self.segmenter_parameters),
             "video_name":           self.video_name,
             "video_hash":           self.video_hash,
@@ -171,15 +172,15 @@ class TracksInfo:
         shape = tuple(serial["video_shape"])
         self = TracksInfo(
             tracks=[Track.decode(track, shape) for track in serial["tracks"]],
-            segmenter_version=Version(serial["segmenter_version"]),
+            version=Version(serial.get('version',"1.0.0")),
             segmenter_parameters=SegmenterParameters(serial["segmenter_parameters"]),
-            tracker_version=Version(serial["tracker_version"]),
             tracker_parameters=TrackerParameters(serial["tracker_parameters"]),
         )
         self.video_name = serial["video_name"]
         self.video_hash = serial["video_hash"]
         self.video_shape = shape
         self.video_length = serial["video_length"]
+        #TODO: #9
         if "video_fps_average" in serial:
             self.video_fps_average = serial["video_fps_average"]
         else:

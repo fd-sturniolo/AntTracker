@@ -8,8 +8,14 @@ debería usar tracker.ant_labeler_info.LabelingInfo.
 
 Cuidado, ambos archivos deben modificarse en conjunto para evitar incompatibilidades.
 
-TODO: generar una solución que atienda a ambos casos, independientemente de cv2/pyav
+La versión del .tag se encuentra en el campo 'version' para versiones de
+ant_tracker>=1.0.0. Para versiones <=0.99f, se encuentra en 'labeler_version',
+siendo 2.1 la versión final. Esta clase mantiene la versión que se encuentre
+en el .tag aún luego de volver a guardar (aunque en principio no debería ser
+usada para guardar)
 """
+#TODO: #8 #9
+
 from dataclasses import dataclass, field
 
 import itertools
@@ -17,7 +23,7 @@ import numpy as np
 import ujson
 from packaging.version import Version
 from pathlib import Path
-from typing import ClassVar, List, Union, TypedDict
+from typing import ClassVar, List, Optional, Union, TypedDict
 
 from .common import Position, to_json, to_tuple
 from .info import TracksInfo
@@ -63,33 +69,43 @@ class UnlabeledFrame:
 @dataclass
 class LabelingInfo(TracksInfo):
     unlabeledFrames: List[UnlabeledFrame] = field(init=False)
-    labeler_version: Version = field(init=False)
-    file_extension: ClassVar = '.tag'
+    labeler_version: Optional[Version] = field(init=False, default=None)
+    version: Optional[Version] = field(init=False, default=None)
+    file_extension: ClassVar[str] = '.tag'
 
     def __init__(self):
         raise AttributeError
 
     class Serial(TracksInfo.Serial):
         unlabeled_frames: List[UnlabeledFrame.Serial]
-        labeler_version: str
+        labeler_version: Optional[str]
+        version: Optional[str]
 
     def encode(self) -> 'LabelingInfo.Serial':
-        return {
+        d = {
             **super(LabelingInfo, self).encode(),
             'unlabeled_frames': [uf.encode() for uf in self.unlabeledFrames],
-            'labeler_version':  str(self.labeler_version),
         }
+        if self.version: d['version'] = str(self.version)
+        if self.labeler_version: d['labeler_version'] = str(self.labeler_version)
+        return d
 
     @classmethod
     def decode(cls, info: 'LabelingInfo.Serial'):
-        labeler_version = Version(info.get('labeler_version', "1.0"))
-        if labeler_version < Version("2.0"):
-            raise ValueError(_version_error_msg(labeler_version))
-        if labeler_version < Version("2.1"):
-            info['tracks'] = _flip_contours_before_2_1(info['tracks'])
+        #TODO: #9
+        version = info.get('version')
+        if not version:
+            labeler_version = Version(info.get('labeler_version', "1.0"))
+            if labeler_version < Version("2.0"):
+                raise ValueError(_version_error_msg(labeler_version))
+            if labeler_version < Version("2.1"):
+                info['tracks'] = _flip_contours_before_2_1(info['tracks'])
 
         self = super(LabelingInfo, cls).decode(info)
-        self.labeler_version = labeler_version
+        if version:
+            self.version = Version(version)
+        else:
+            self.labeler_version = labeler_version
         ufs = [UnlabeledFrame.decode(uf) for uf in info['unlabeled_frames']]
         self.unlabeledFrames = [uf for uf in ufs if uf.contours]
         return self
@@ -107,7 +123,8 @@ class LabelingInfo(TracksInfo):
             f.write(self.serialize(pretty=pretty))
 
 def _version_error_msg(current_version):
-    return (f"Esta clase soporta sólo versión >=2.0 del protocolo. "
+    return (f"Esta clase soporta sólo versión >=2.0 del protocolo,"
+            f"o versión >= 1.0.0 de ant_tracker."
             f"Abra este archivo con una versión nueva de AntLabeler para actualizar. "
             f"Versión actual: {current_version}")
 
