@@ -123,13 +123,16 @@ class Exporter:
         ])
 
         progress_i = 0
-        progress_max = sum([len(info.filter_tracks(**C.TRACKFILTER)) for info in infos])
         yield "Inicializando...", 1, 1
-        yield "Generando análisis por hormiga", progress_i, progress_max
+        yield "Generando análisis por hormiga", progress_i, 1
         for info in infos:
             od = partial(onedim_conversion, mm_per_pixel=info.mm_per_pixel)
             area = partial(area_conversion, mm_per_pixel=info.mm_per_pixel)
-            for track in info.filter_tracks(**C.TRACKFILTER):
+            tracks = info.filter_tracks(**C.TRACKFILTER)
+            progress_max = len(tracks) + 1
+            for track in tracks:
+                if not (EN(track, info) or SN(track, info)):
+                    continue
                 ws.append([
                     info.video_name,
                     track.id,
