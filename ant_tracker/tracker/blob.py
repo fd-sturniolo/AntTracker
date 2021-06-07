@@ -37,12 +37,9 @@ class Blob:
 
     @memoized_property
     def area(self):
-        return self.central_moments[0, 0]
-
-    @property
-    def central_moments(self):
-        from skimage.measure import moments_coords_central
-        return moments_coords_central(self.full_contour)
+        p = self.props
+        if not p: return 1
+        return p.area
 
     def is_fully_visible(self, percentage):
         center_rect = Side.center_rect(self.shape, percentage)
@@ -81,6 +78,7 @@ class Blob:
     def radius(self):
         return np.linalg.norm(self.contour - self.center, axis=1).max(initial=0)
 
+    @memoized_property
     def props(self):
         from skimage.measure import regionprops
         mask = self.get_mask()
@@ -89,15 +87,15 @@ class Blob:
             return None
         return r[0]
 
-    @memoized_property
+    @property
     def length(self):
-        p = self.props()
+        p = self.props
         if not p: return 1
         return p.major_axis_length
 
-    @memoized_property
+    @property
     def width(self):
-        p = self.props()
+        p = self.props
         if not p: return 1
         return p.minor_axis_length
 
