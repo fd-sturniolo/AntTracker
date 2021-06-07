@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
-console = True
+console = False
 interpreter_options = [
     # ('v', None, 'OPTION'), #* Verbose output
 ]
