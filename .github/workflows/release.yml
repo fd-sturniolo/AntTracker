@@ -1,0 +1,44 @@
+name: Crear release con instalador al pushear tag de versión
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      max-parallel: 2
+    steps:      
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Add conda to system path
+        run: |
+          # $CONDA is an environment variable pointing to the root of the miniconda directory
+          echo $CONDA/bin >> $GITHUB_PATH
+      - name: Install dependencies
+        run: |
+          cd AntTracker
+          .\create-env tracker
+      - name: Activate environment
+        run: conda activate tracker
+      - name: Build AntTracker
+        run: .\build
+      - name: makensis
+        uses: joncloud/makensis-action@v3.5
+        with:
+          script-file: make_installer.nsi
+      - name: Get version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+          echo ${{ env.VERSION }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: AntTracker_${{env.VERSION}}_installer.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
