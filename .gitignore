@@ -11,6 +11,9 @@ profile
 *.log
 *.tag
 *.trk
+*.uctrk
+*.uotrk
+.anttrackersession
 
 *.mp4
 *.ttf

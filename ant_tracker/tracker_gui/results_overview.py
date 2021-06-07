@@ -71,10 +71,9 @@ def filter_func(info: TracksCompleteInfo):
     return lambda t: info.track_direction(t) != Direction.UN and f(t)
 
 class TrackTask:
-    def __init__(self, save_every_n_frames=1000, save_every_n_leaf_detects=100):
+    def __init__(self, save_every_n_leaf_detects=100):
         self._running = True
         self.exc = None
-        self.save_every_n_frames = save_every_n_frames
         self.save_every_n_leaf_detects = save_every_n_leaf_detects
 
     def terminate(self):
@@ -140,7 +139,7 @@ class TrackTask:
                 for frame in track_generator:
                     send(K.Report, f"{short_fn(path)}, tracking: {frame}/{tracker.video_length}")
                     send(progress_key, {'p': frame})
-                    if frame > 0 and frame % self.save_every_n_frames == 0:
+                    if session.save_every_n_frames > 0 and frame > 0 and frame % session.save_every_n_frames == 0:
                         session.states[path] = S.Tracking
                         send(K.Report, f"{short_fn(path)}, guardando tracking hasta frame {frame}...")
                         session.record_tracker_state(path, tracker)

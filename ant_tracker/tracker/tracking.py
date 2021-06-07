@@ -4,6 +4,8 @@ from pathlib import Path
 from scipy.spatial.distance import cdist
 from typing import List, NewType, Optional, Tuple, Union, TypedDict, Dict
 
+import json
+
 from .blob import Blob
 from .common import FrameNumber, Video, ensure_path, to_json, encode_np_randomstate, decode_np_randomstate
 from .info import TracksInfo
@@ -24,6 +26,7 @@ class Tracker:
         self.version = __version__
         self.__tracks: Optional[List[Track]] = None
         self.params = params
+        self.__closed_to_save: List[TrackId] = []
         if segmenter is None:  # from deserialization
             return
         self.segmenter = segmenter
@@ -165,9 +168,14 @@ class Tracker:
             # endregion
 
             # region Close tracks that were lost for too many frames
-            tracks = [(track.as_closed() if track.closed else track)
-                      if isinstance(track, OngoingTrack) else track
-                      for track in tracks]
+            _tracks = []
+            for track in tracks:
+                if isinstance(track, OngoingTrack) and track.closed:
+                    _tracks.append(track.as_closed())
+                    self.__closed_to_save.append(track.id)
+                else:
+                    _tracks.append(track)
+            tracks = _tracks
             # endregion
 
             # region Create new tracks
@@ -195,6 +203,7 @@ class Tracker:
         yield from self.track_progressive_continue()
 
     def track_viz(self, video: Optional[Video] = None, *, step_by_step=False, fps=10):
+        """No usar para operación normal, sólo para debugging visual"""
         # region Drawing
         if video is not None:
             from matplotlib import pyplot as plt
@@ -415,27 +424,43 @@ class Tracker:
 
     @staticmethod
     def closed(tracks: List[Track]) -> List[Track]:
-        return [track for track in tracks if isinstance(track, Track) and not isinstance(track, OngoingTrack)]
+        return [track for track in tracks if not isinstance(track, OngoingTrack)]
 
     # endregion
 
     # region Serialization
-    def save_unfinished(self, file: Union[Path, str]):
+    def save_unfinished(self, closed_file: Optional[Union[Path, str]] = None, ongoing_file: Optional[Union[Path, str]] = None):
         if self.is_finished: raise ValueError("El tracking ya fue finalizado, use info()")
-        file = ensure_path(file)
-        with file.open('w') as f:
-            f.write(to_json(self.encode_unfinished()))
+
+        closed_file = (Path(self.video_path.parent / f".{self.video_path.name}.uctrk")
+                        if not closed_file else ensure_path(closed_file))
+        ongoing_file = (Path(self.video_path.parent / f".{self.video_path.name}.uotrk")
+                        if not ongoing_file else ensure_path(ongoing_file))
+
+        tracks_to_save = [track for track in self.__inprogress_tracks
+                            if track.id in self.__closed_to_save]
+        with closed_file.open('a') as f:
+            f.writelines((json.dumps(track.encode())+"\n" for track in tracks_to_save))
+        self.__closed_to_save = []
+        with ongoing_file.open('w') as f:
+            f.write(json.dumps(self.__encode_ongoing()))
 
     @classmethod
-    def load_unfinished(cls, file: Union[Path, str], video: Video, video_path: Union[Path, str]):
-        file = ensure_path(file)
-        with file.open('r') as f:
-            import json
-            self = cls.decode_unfinished(json.load(f), video, video_path)
+    def load_unfinished(cls, closed_file: Union[Path, str], ongoing_file: Union[Path, str], video: Video, video_path: Union[Path, str]):
+        closed_file = ensure_path(closed_file)
+        ongoing_file = ensure_path(ongoing_file)
+        with ongoing_file.open('r') as f:
+            self = cls.__decode_ongoing(json.load(f), video, video_path)
+
+        closed_tracks = []
+        with closed_file.open('r') as f:
+            for line in f:
+                closed_tracks.append(Track.decode(json.loads(line), self.video_shape))
+        self.__inprogress_tracks.extend(closed_tracks)
+        self.last_id = TrackId(max([track.id for track in self.__inprogress_tracks]) + 1)
         return self
 
-    class UnfinishedSerial(TypedDict):
-        __closed_tracks: List[Track.Serial]
+    class OngoingSerial(TypedDict):
         __ongoing_tracks: List[OngoingTrack.Serial]
         __last_tracked_frame: int
         __np_randomstate: Tuple
@@ -444,9 +469,8 @@ class Tracker:
         video_length: int
         video_shape: Tuple[int, int]
 
-    def encode_unfinished(self) -> 'Tracker.UnfinishedSerial':
+    def __encode_ongoing(self) -> 'Tracker.OngoingSerial':
         return {
-            '__closed_tracks':      [Track.encode(track) for track in Tracker.closed(self.__inprogress_tracks)],
             '__ongoing_tracks':     [OngoingTrack.encode(track) for track in Tracker.ongoing(self.__inprogress_tracks)],
             '__last_tracked_frame': self.__last_tracked_frame,
             '__np_randomstate':     encode_np_randomstate(self.__random_state.get_state()),
@@ -457,7 +481,7 @@ class Tracker:
         }
 
     @classmethod
-    def decode_unfinished(cls, serial: 'Tracker.UnfinishedSerial', video: Video, video_path: Path):
+    def __decode_ongoing(cls, serial: 'Tracker.OngoingSerial', video: Video, video_path: Path):
         video_shape = serial['video_shape']
         self = cls(video_path, params=TrackerParameters.decode(serial['tracker_parameters']))
         self.segmenter = LogWSegmenter(video, SegmenterParameters.decode(serial['segmenter_parameters']))
@@ -469,7 +493,6 @@ class Tracker:
         self.__random_state = np.random.RandomState()
         self.__random_state.set_state(decode_np_randomstate(serial['__np_randomstate']))
 
-        closed_tracks = [Track.decode(track, video_shape) for track in serial['__closed_tracks']]
         ongoing_tracks = [OngoingTrack.decode(
             track,
             self.params.a_sigma,
@@ -478,8 +501,7 @@ class Tracker:
             self.__random_state
         ) for track in serial['__ongoing_tracks']]
 
-        self.__inprogress_tracks = closed_tracks + ongoing_tracks
-        self.last_id = TrackId(max([track.id for track in self.__inprogress_tracks]) + 1)
+        self.__inprogress_tracks = ongoing_tracks
 
         return self
 

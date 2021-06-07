@@ -1,3 +1,4 @@
+from ant_tracker.tracker_gui.guicommon import align
 import PySimpleGUI as sg
 import av
 import datetime
@@ -150,7 +151,6 @@ def ant_tracker_routine():
             session.states = {f: SessionInfo.State.GotParameters for f in files}
             for i_file, file in enumerate(files[1:], 2):
                 session.lengths[file] = get_video_len(file, f"Cargando video {i_file} de {len(files)}")
-            session.save(sesspath)
         else:
             # noinspection DuplicatedCode
             for i_file, file in enumerate(files[1:], 2):
@@ -160,8 +160,24 @@ def ant_tracker_routine():
                 session.parameters[file] = p
                 session.states[file] = SessionInfo.State.GotParameters
                 session.lengths[file] = len(video)
-                session.save(sesspath)
 
+        saveprogwin = sg.Window("Guardado progresivo", [
+            [sg.Text("AntTracker guarda el progreso de procesado cada cierta cantidad de cuadros, "
+                    "para evitar pérdidas de datos en caso de inconvenientes.\n"
+                    "Guardar progreso cada tantos cuadros:", size=(50,3))],
+            [align(sg.Input(default_text="1000", key='-IN-', size=(6,1), enable_events=True), 'center')],
+            [sg.Text("(Un valor de 0 desactiva el guardado progresivo)")],
+            [align(sg.Button('Continuar'), 'right')]
+            ], size=(430,160), disable_close=True, modal=True, icon=C.LOGO_AT_ICO)
+        while True:
+            event, values = saveprogwin.read()
+            if event == '-IN-' and values['-IN-'] and values['-IN-'][-1] not in ('0123456789'):
+                saveprogwin['-IN-'].update(values['-IN-'][:-1])
+            if event == 'Continuar' and values['-IN-']:
+                session.save_every_n_frames = int(values['-IN-'])
+                saveprogwin.close()
+                break
+        session.save(sesspath)
     else:  # not the first run
         new_files = [p for p, s in session.states.items() if s == SessionInfo.State.New]
         # noinspection DuplicatedCode

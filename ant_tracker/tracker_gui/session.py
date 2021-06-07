@@ -4,7 +4,7 @@ from enum import auto
 import datetime
 import json
 from pathlib import Path
-from typing import Union, List, Dict, Optional
+from typing import Tuple, Union, List, Dict, Optional
 
 from .extracted_parameters import ExtractedParameters, SelectionStep
 from ..tracker.common import ensure_path, to_json, SerializableEnum, crop_from_rect, filehash
@@ -50,6 +50,7 @@ class SessionInfo:
     parameters: Dict[Path, Optional[ExtractedParameters]]
     unfinished_trackers: Dict[Path, Optional[Tracker]]
     detection_probs: Dict[Path, Dict[TrackId, float]]
+    save_every_n_frames: int = 1000
     __is_first_run: bool = field(init=False, default=False)
 
     @staticmethod
@@ -114,7 +115,14 @@ class SessionInfo:
 
     def save(self, path: Union[Path, str]):
         path = ensure_path(path)
+        unfinished_tracker_files: Dict[Path, Tuple[Path, Path]] = {}
         for file in self.videofiles:
+            if self.states[file] == SessionInfo.State.Tracking:
+                vname = self.unfinished_trackers[file].video_path.name
+                closed_file = path.parent / f".{vname}.uctrk"
+                ongoing_file = path.parent / f".{vname}.uotrk"
+                self.unfinished_trackers[file].save_unfinished(closed_file, ongoing_file)
+                unfinished_tracker_files[file] = (closed_file, ongoing_file)
             if self.states[file] != SessionInfo.State.Tracking and self.unfinished_trackers[file]:
                 self.unfinished_trackers[file] = None
             if self.states[file] != SessionInfo.State.DetectingLeaves and self.detection_probs[file]:
@@ -127,10 +135,11 @@ class SessionInfo:
                 'states':              {str(p.name): s.name for p, s in self.states.items()},
                 'parameters':          {str(p.name): (s.encode() if s is not None else None) for p, s in
                                         self.parameters.items()},
-                'unfinished_trackers': {str(p.name): (t.encode_unfinished() if t is not None else None) for p, t in
-                                        self.unfinished_trackers.items()},
+                'unfinished_trackers': {str(p.name): ((co[0].name, co[1].name) if co is not None else None) for p, co in
+                                        unfinished_tracker_files.items()},
                 'detection_probs':     {str(p.name): {str(i): prob for i, prob in probs.items()} for p, probs in
-                                        self.detection_probs.items()}
+                                        self.detection_probs.items()},
+                'save_every_n_frames': self.save_every_n_frames,
             })
         )
 
@@ -141,15 +150,17 @@ class SessionInfo:
 
         trackers = {(path.parent / p): None for p, t in d['unfinished_trackers'].items()}
         if with_trackers:
-            for p, t in d['unfinished_trackers'].items():
-                if t is not None:
-                    file = (path.parent / p)
-                    crop_rect = ExtractedParameters.decode(d['parameters'][p]).rect_data[SelectionStep.TrackingArea]
+            for vname, co in d['unfinished_trackers'].items():
+                if co is not None:
+                    videofile = path.parent / vname
+                    closed_file = videofile.parent / co[0]
+                    ongoing_file = videofile.parent / co[1]
                     import pims
                     from pims.process import crop
-                    video = pims.PyAVReaderIndexed(file)
+                    crop_rect = ExtractedParameters.decode(d['parameters'][vname]).rect_data[SelectionStep.TrackingArea]
+                    video = pims.PyAVReaderIndexed(videofile)
                     video = crop(video, crop_from_rect(video.frame_shape[0:2], crop_rect))
-                    trackers[file] = Tracker.decode_unfinished(t, video, file)
+                    trackers[videofile] = Tracker.load_unfinished(closed_file, ongoing_file, video, videofile)
         if 'detection_probs' in d:
             detection_probs = {(path.parent / p): {int(i): prob for i, prob in probs.items()} for p, probs in
                                d['detection_probs'].items()}
@@ -165,5 +176,6 @@ class SessionInfo:
              d['parameters'].items()},
             trackers,
             detection_probs,
+            d.get('save_every_n_frames',1000),
         )
         return self
