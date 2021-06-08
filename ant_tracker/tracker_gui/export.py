@@ -131,23 +131,23 @@ class Exporter:
             tracks = info.filter_tracks(**C.TRACKFILTER)
             progress_max = len(tracks) + 1
             for track in tracks:
-                if not (EN(track, info) or SN(track, info)):
-                    continue
-                ws.append([
-                    info.video_name,
-                    track.id,
-                    "EN" if EN(track, info) else "SN" if SN(track, info) else "??",
-                    ("Si" if track.load_prediction else "No") if track.load_detected else "??",
-                    track.load_certainty if track.load_detected else 0,
-                    od(track.speed_mean),
-                    area(track.area_median),
-                    od(track.length_median),
-                    od(track.width_median),
-                    info.time_at(track.first_frame()),
-                    info.time_at(track.last_frame()),
-                    track.first_frame(),
-                    track.last_frame(),
-                ])
+                direction = info.track_direction(track)
+                if direction != Direction.UN:
+                    ws.append([
+                        info.video_name,
+                        track.id,
+                        direction.name,
+                        ("Si" if track.load_prediction else "No") if track.load_detected else "??",
+                        track.load_certainty if track.load_detected else 0,
+                        od(track.speed_mean),
+                        area(track.area_median),
+                        od(track.length_median),
+                        od(track.width_median),
+                        info.time_at(track.first_frame()),
+                        info.time_at(track.last_frame()),
+                        track.first_frame(),
+                        track.last_frame(),
+                    ])
                 progress_i += 1
                 yield "Generando análisis por hormiga", progress_i, progress_max
 
