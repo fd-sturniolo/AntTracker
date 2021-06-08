@@ -108,14 +108,6 @@ class TrackTask:
                 send(K.Report, f"{short_fn(path)}, comenzando detección de hojas...")
             video = None
             info = None
-            if with_leaves and session.states[path] == S.Finished:
-                send(K.Report, f"{short_fn(path)}, cargando información previa...")
-                info = TracksCompleteInfo.load(trkfile)
-                load_relevant = filter_func(info)
-                leafstate = [track.load_detected for track in info.tracks if load_relevant(track)]
-                if not all(leafstate):
-                    session.states[path] = S.DetectingLeaves
-                    send(K.Report, f"{short_fn(path)}, retomando detección de hojas...")
 
             if session.states[path] < S.Finished:
                 send(K.Report, f"{short_fn(path)}, cargando video...")
@@ -153,6 +145,14 @@ class TrackTask:
                 session.states[path] = S.DetectingLeaves
                 session.save(sesspath)
             send(progress_key, {'color': PB_GREEN, 'background': PB_DEEP_BLUE})
+
+            if with_leaves and session.states[path] == S.Finished:
+                load_relevant = filter_func(info)
+                leafstate = [track.load_detected for track in info.tracks if load_relevant(track)]
+                if not all(leafstate):
+                    session.states[path] = S.DetectingLeaves
+                    send(K.Report, f"{short_fn(path)}, retomando detección de hojas...")
+
             if session.states[path] == S.DetectingLeaves:
                 if with_leaves:
                     send(K.Report, f"{short_fn(path)}, comenzando detección de hojas...")
