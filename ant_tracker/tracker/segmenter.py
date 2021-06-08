@@ -1,5 +1,6 @@
 import numpy as np
 import pims
+import cv2 as cv
 import skimage.draw as skdraw
 import skimage.feature as skfeature
 import skimage.filters as skfilters
@@ -18,7 +19,7 @@ from .parameters import SegmenterParameters, LogWSegmenterParameters, DohSegment
 
 Blobs = List[Blob]
 
-def _get_mask_with_steps(frame: GrayscaleImage, last_frames: List[GrayscaleImage], *, params: SegmenterParameters):
+def _get_mask(frame: GrayscaleImage, last_frames: List[GrayscaleImage], *, params: SegmenterParameters):
     if len(last_frames) == 0:
         background = GrayscaleImage(np.zeros_like(frame))
     else:
@@ -30,18 +31,15 @@ def _get_mask_with_steps(frame: GrayscaleImage, last_frames: List[GrayscaleImage
 
     # Descartar la máscara si está llena de movimiento (se movió la cámara!)
     if np.count_nonzero(mask) > np.size(mask) * params.discard_percentage:
-        zeros = np.zeros(mask.shape, dtype='bool')
-        return zeros, zeros, zeros, zeros, background, movement
+        return np.zeros(mask.shape, dtype='bool')
 
     radius = params.minimum_ant_radius
-    closed_mask = skmorph.binary_closing(mask, skmorph.disk(round(radius)))
-    opened_mask = skmorph.binary_opening(closed_mask, skmorph.disk(round(radius * 0.8)))
-    dilated_mask = skmorph.binary_dilation(opened_mask, skmorph.disk(round(radius)))
 
-    return dilated_mask, mask, closed_mask, opened_mask, background, movement
+    mask = cv.morphologyEx(mask.astype('uint8'), cv.MORPH_CLOSE, skmorph.disk(round(radius)))
+    mask = cv.morphologyEx(mask, cv.MORPH_OPEN, skmorph.disk(round(radius * 0.8)))
+    mask = cv.dilate(mask, skmorph.disk(round(radius)))
 
-def _get_mask(frame: GrayscaleImage, last_frames: List[GrayscaleImage], *, params: SegmenterParameters):
-    return _get_mask_with_steps(frame, last_frames, params=params)[0]
+    return mask
 
 def _get_blobs_in_frame_with_steps_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters,
                                         prev_blobs: List[Blob]):
@@ -330,187 +328,3 @@ class DohSegmenter(Segmenter):
 
     def _get_blobs(self, gray_frame, mask, prev_blobs):
         return _get_blobs_doh(gray_frame, mask, self.params)
-
-# noinspection PyUnboundLocalVariable
-def main():
-    from matplotlib import pyplot as plt
-    from matplotlib.figure import Figure
-    from matplotlib.widgets import Slider
-    from mpl_toolkits.axes_grid1 import ImageGrid
-
-    from .plotcommon import Animate, PageSlider
-    from .common import Colors
-    import argparse
-    parser = argparse.ArgumentParser(description="Visualize segmentation of a video")
-    parser.add_argument('file')
-    parser.add_argument('--firstFrame', '-f', type=int, default=None, metavar="F",
-                        help="Primer frame a procesar")
-    parser.add_argument('--lastFrame', '-l', type=int, default=None, metavar="L",
-                        help="Último frame a procesar")
-    parser.add_argument('--draw', '-d', type=bool, default=False, metavar="D",
-                        help="Mostrar la segmentación en imágenes")
-    parser.add_argument('--play', '-p', type=bool, default=False, metavar="P",
-                        help="Avanzar frames automáticamente (con --draw)")
-
-    args = parser.parse_args()
-    file: str = args.file
-    draw = args.draw
-    play = args.play
-
-    video = pims.PyAVReaderIndexed(f"{file}")
-    p = SegmenterParameters(gaussian_sigma=5)
-
-    frame_n = 0 if args.firstFrame is None else args.firstFrame
-    last_frame_to_process = len(video) if args.lastFrame is None else args.lastFrame
-    print(f"Processing from frames {frame_n} to {last_frame_to_process}")
-    last_drawn_frame_n = -1
-    exit_flag = False
-    update = False
-    update_page = False
-    page = 0
-    total_pages = 13
-    if draw:
-        def on_key_press(event):
-            nonlocal frame_n, exit_flag, play, page, page_slider, update, update_page
-            if event.key == 'a':
-                frame_n -= 1
-            elif event.key == 'd':
-                frame_n += 1
-            elif event.key == 'p':
-                play = not play
-                update = True
-            elif event.key == 'k':
-                page = (page + 1) % total_pages
-                page_slider.set_val(page)
-                update_page = True
-            elif event.key == 'j':
-                page = (page - 1) % total_pages
-                page_slider.set_val(page)
-                update_page = True
-            elif event.key == 't':
-                nonlocal log
-                try:
-                    log
-                except UnboundLocalError:
-                    print("log undefined")
-                    return
-                skfilters.try_all_threshold(log)
-            elif event.key == 'escape':
-                exit_flag = True
-
-        fig: Figure = plt.figure()
-        grid = ImageGrid(fig, (0.1, 0.1, 0.8, 0.8),
-                         nrows_ncols=(1, 2),
-                         share_all=True,
-                         axes_pad=0.05,
-                         label_mode="1",
-                         )
-        fig.suptitle(f"{frame_n=}")
-        fig.canvas.mpl_connect('key_press_event', on_key_press)
-
-        def __sigma_update_fn(val):
-            nonlocal p, update
-            p.gaussian_sigma = val
-            update = True
-
-        # noinspection PyPep8Naming
-        sigmaS = Slider(fig.add_axes([0.1, 0.1, 0.8, 0.04]), 'sigma', 1., 20, valinit=p.gaussian_sigma, valstep=0.2)
-        sigmaS.on_changed(__sigma_update_fn)
-
-        ax_page_slider = fig.add_axes([0.1, 0.05, 0.8, 0.04])
-        page_slider = PageSlider(ax_page_slider, 'Page', total_pages, activecolor="orange")
-
-        def __page_update_fn(val):
-            nonlocal page, update_page
-            i = int(val)
-            page = i
-            update_page = True
-
-        page_slider.on_changed(__page_update_fn)
-    else:
-        progress_bar = ProgressBar(last_frame_to_process)
-
-    print(f"{exit_flag=}")
-    print(f"{frame_n=}")
-    print(f"{len(video)=}")
-    last_frames = []
-
-    def draw_step(ax_, step):
-        Animate.draw(ax_, step['im'], autoscale=step.get('autoscale', False))
-        ax_.set_title(step['title'])
-
-    prev_blobs = []
-    while not exit_flag and frame_n < last_frame_to_process:
-        if last_drawn_frame_n != frame_n or update:
-            print(f"{frame_n=}")
-            frame: ColorImage = video[frame_n]
-
-            grayframe = rgb2gray(frame)
-
-            if last_drawn_frame_n != frame_n:
-                movement_mask, first_mask, closed_mask, opened_mask, background, movement = _get_mask_with_steps(
-                    grayframe, last_frames, params=p)
-                if len(last_frames) < p.movement_detection_history:
-                    last_frames.append(grayframe)
-                else:
-                    last_frames[:-1] = last_frames[1:]
-                    last_frames[-1] = grayframe
-
-            _out = _get_blobs_in_frame_with_steps_logw(grayframe,
-                                                       movement_mask,
-                                                       params=p,
-                                                       prev_blobs=prev_blobs)
-            blobs, gauss, log, threshed_log, intersection_zone, labels = _out
-
-            prev_blobs = blobs
-            frame_with_blobs = Blob.draw_blobs(blobs, frame).copy()
-
-            if draw:
-                for blob in blobs:
-                    # only do watershed where previous frame blobs had intersecting circles
-                    rr, cc = skdraw.circle_perimeter(blob.center_xy[1], blob.center_xy[0],
-                                                     int(p.minimum_ant_radius),
-                                                     shape=frame_with_blobs.shape)
-                    frame_with_blobs[rr, cc] = Colors.RED
-                    rr, cc = skdraw.circle_perimeter(blob.center_xy[1], blob.center_xy[0],
-                                                     int(maximum_clear_radius(blob.radius)),
-                                                     shape=frame_with_blobs.shape)
-                    frame_with_blobs[rr, cc] = Colors.BLUE
-
-                fig.suptitle(f"{frame_n=}")
-                last_drawn_frame_n = frame_n
-                if play:
-                    frame_n += 1
-                update_page = True
-                update = False
-            else:
-                frame_n += 1
-                progress_bar.next()
-        if draw:
-            if update_page:
-                steps = [
-                    {'im': frame, 'title': "frame"},
-                    {'im': movement, 'title': "movement", 'autoscale': True},
-                    {'im': first_mask, 'title': "first_mask"},
-                    {'im': closed_mask, 'title': "closed_mask"},
-                    {'im': opened_mask, 'title': "opened_mask"},
-                    {'im': movement_mask, 'title': "dilated_mask"},
-                    {'im': frame, 'title': "frame"},
-                    {'im': gauss, 'title': "gauss", 'autoscale': True},
-                    {'im': log, 'title': "log", 'autoscale': True},
-                    {'im': threshed_log, 'title': "threshed_log", 'autoscale': True},
-                    {'im': intersection_zone, 'title': "intersection_zone"},
-                    {'im': labels, 'title': "labels", 'autoscale': True},
-                    {'im': frame_with_blobs, 'title': "blobs"},
-                ]
-
-                draw_step(grid[0], steps[page])
-                draw_step(grid[1], steps[(page + 1) % total_pages])
-
-                plt.draw()
-                update_page = False
-            plt.pause(0.05)
-    plt.close()
-
-if __name__ == '__main__':
-    main()
