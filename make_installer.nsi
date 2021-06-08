@@ -78,12 +78,16 @@ Section "Visual C++ Redistributable para Visual Studio 2017"
   ExecWait '"$INSTDIR\vc_redist.x64.exe" /install /passive /norestart'
 SectionEnd
 
-; Optional section (can be disabled by the user)
 Section "Accesos directos (Menu Inicio)"
   CreateDirectory "$SMPROGRAMS\AntTracker"
   CreateShortcut "$SMPROGRAMS\AntTracker\Uninstall.lnk" "$INSTDIR\uninstall.exe"
   CreateShortcut "$SMPROGRAMS\AntTracker\AntTracker.lnk" "$INSTDIR\AntTracker.exe"
   CreateShortcut "$SMPROGRAMS\AntTracker\AntLabeler.lnk" "$INSTDIR\AntLabeler.exe"
+SectionEnd
+
+Section /o "Accesos directos (Escritorio)"
+  CreateShortcut "$DESKTOP\AntTracker.lnk" "$INSTDIR\AntTracker.exe"
+  CreateShortcut "$DESKTOP\AntLabeler.lnk" "$INSTDIR\AntLabeler.exe"
 SectionEnd
 
 ;--------------------------------
@@ -100,6 +104,8 @@ Section "Uninstall"
 
   ; Remove shortcuts, if any
   Delete "$SMPROGRAMS\AntTracker\*.lnk"
+  Delete "$DESKTOP\AntTracker.lnk"
+  Delete "$DESKTOP\AntLabeler.lnk"
 
   ; Remove directories
   RMDir "$SMPROGRAMS\AntTracker"
