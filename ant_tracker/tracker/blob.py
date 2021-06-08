@@ -12,8 +12,9 @@ class Blob:
         if (mask is None) == (contour is None):
             raise ValueError("Only mask or contour, not both")
         if mask is not None:
-            from skimage.measure import approximate_polygon, find_contours
-            self.contour = approximate_polygon(np.array(find_contours(mask, 0)[0]), approx_tolerance)
+            import cv2 as cv
+            contour = cv.findContours(mask.astype('uint8'), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_L1)[0][0]
+            self.contour = np.flip(np.squeeze(cv.approxPolyDP(contour, approx_tolerance, True)), axis=1)
         elif contour is not None:
             self.contour = contour
         self.contour = _clip_contour(self.contour, imshape)
