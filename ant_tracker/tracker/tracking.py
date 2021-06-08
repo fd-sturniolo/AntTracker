@@ -23,7 +23,7 @@ class Tracker:
     def __init__(self, video_path: Union[Path, str], segmenter: Segmenter = None, *,
                  params: TrackerParameters = TrackerParameters(use_defaults=True)):
         self.video_path = video_path
-        self.version = __version__
+        self.version = Version(__version__)
         self.__tracks: Optional[List[Track]] = None
         self.params = params
         self.__closed_to_save: List[TrackId] = []
