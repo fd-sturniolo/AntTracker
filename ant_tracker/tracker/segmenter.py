@@ -1,3 +1,5 @@
+from functools import lru_cache
+import json
 import numpy as np
 import pims
 import cv2 as cv
@@ -40,6 +42,35 @@ def _get_mask(frame: GrayscaleImage, last_frames: List[GrayscaleImage], *, param
     mask = cv.dilate(mask, skmorph.disk(round(radius)))
 
     return mask
+
+@lru_cache
+def kernel(r: float):
+    return cv.getStructuringElement(cv.MORPH_ELLIPSE, (int(r), int(r)))
+
+def _get_mask_mog2(subt, frame: GrayscaleImage, *, params: SegmenterParameters):
+    mask = subt.apply(frame)
+    objects = frame.copy()
+    objects[mask == 0] = (0)
+    _, lamina = cv.threshold(objects, 150, 255, cv.THRESH_BINARY)
+
+    mask = cv.subtract(mask, lamina)
+
+    r = params.minimum_ant_radius
+    mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel(r))
+    mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel(r * 0.8))
+
+    # Descartar la máscara si está llena de movimiento (se movió la cámara!)
+    if np.count_nonzero(mask) > np.size(mask) * params.discard_percentage:
+        return np.zeros(mask.shape, dtype='bool')
+
+    contours, _ = cv.findContours(mask.astype('uint8'), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_L1)
+
+    mask = np.zeros_like(mask)
+    min_area = minimum_ant_area(params.minimum_ant_radius)
+    contours = [cv.approxPolyDP(cont, 0.01, True) for cont in contours if cv.contourArea(cont) > min_area]
+    mask = cv.fillPoly(mask, contours, 255)
+
+    return mask.astype('bool')
 
 def _get_blobs_in_frame_with_steps_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters,
                                         prev_blobs: List[Blob]):
@@ -167,14 +198,14 @@ def minimum_ant_area(min_radius):
 def maximum_clear_radius(radius):
     return radius * 3
 
+def create_subtractor(history):
+    return cv.createBackgroundSubtractorMOG2(detectShadows=False, history=history)
 class Segmenter:
     def __init__(self, video: Video = None, params: SegmenterParameters = None):
         if video is None:
             return
         self.__frames_with_blobs: Dict[FrameNumber, Blobs] = {}
-        self.__last_frames = []
         self.__video = video
-        self.__prev_blobs: Tuple[FrameNumber, Blobs] = (-1, [])
         self.params = params
         self.video_length = len(video)
         self.video_shape = tuple(video[0].shape[0:2])
@@ -198,18 +229,11 @@ class Segmenter:
         mock.params = params
         return cls._get_blobs(mock, gray_frame, mask, [])
 
-    def _get_mask(self, frame):
-        return _get_mask(frame, self.__last_frames, params=self.params)
+    def _get_mask(self, subtractor, frame):
+        return _get_mask_mog2(subtractor, frame, params=self.params)
 
     def _get_blobs(self, gray_frame, mask, prev_blobs) -> Blobs:
         raise NotImplementedError
-
-    def __cycle_last_frames(self, frame: GrayscaleImage):
-        if len(self.__last_frames) < self.params.movement_detection_history:
-            self.__last_frames.append(frame)
-        else:
-            self.__last_frames[:-1] = self.__last_frames[1:]
-            self.__last_frames[-1] = frame
 
     def segment_rolling_continue(self):
         """Continuar segmentando desde el último frame segmentado."""
@@ -240,17 +264,18 @@ class Segmenter:
                              "si se dispone de él, o bien proporcionar una lista vacía "
                              "(corriendo el riesgo de perder reproducibilidad)")
         n = min(self.params.movement_detection_history, from_frame_n)
-        self.__last_frames = [rgb2gray(f) for f in self.__video[from_frame_n - n:from_frame_n]] if from_frame_n != 0 else []
+        subtractor = create_subtractor(self.params.movement_detection_history)
+        for frame_n in range(from_frame_n-n,from_frame_n):
+            print("updating subtractor")
+            subtractor.apply(rgb2gray(self.__video[frame_n]))
         for frame_n, frame in enumerate(self.__video[from_frame_n:], from_frame_n):
             if frame_n in self.__frames_with_blobs:
                 yield frame_n, self.__frames_with_blobs[frame_n]
             else:
                 gray_frame = rgb2gray(frame)
-                mask = self._get_mask(gray_frame)
+                mask = self._get_mask(subtractor, gray_frame)
                 blobs = self._get_blobs(gray_frame, mask, prev_blobs)
-                self.__cycle_last_frames(gray_frame)
                 self.__frames_with_blobs[frame_n] = blobs
-                self.__prev_blobs = (frame_n, blobs)
                 prev_blobs = blobs
                 yield frame_n, blobs
 
@@ -306,9 +331,9 @@ class Segmenter:
     def deserialize(cls, *, filename=None, jsonstring=None):
         if filename is not None:
             with open(filename, 'r') as file:
-                segmenter_dict = ujson.load(file)
+                segmenter_dict = json.load(file)
         elif jsonstring is not None:
-            segmenter_dict = ujson.loads(jsonstring)
+            segmenter_dict = json.loads(jsonstring)
         else:
             raise TypeError("Provide either JSON string or filename.")
         return cls.decode(segmenter_dict)
