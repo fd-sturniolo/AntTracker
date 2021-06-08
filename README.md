@@ -32,12 +32,18 @@ MakeNSIS make_installer.nsi # Crea el instalador
 
 ### Nuevas versiones
 
-Para incrementar el número de versión del software deberá usar [`bump2version`](https://github.com/c4urself/bump2version) (el cual se instala automáticamente en el environment de desarrollo).
+Para incrementar el número de versión del software deberá usar [`bump2version`](https://github.com/c4urself/bump2version) 
+(el cual se instala automáticamente en el environment de desarrollo).
+Antes conviene agregar los cambios al [changelog](https://github.com/fd-sturniolo/AntTracker/blob/main/CHANGELOG.md).
 El siguiente comando aumenta la versión `major`/`minor`/`patch` del software e instalador:
 
 ```powershell
 bump2version [major/minor/patch]
 ```
+
+Al pushear el commit y tag generado por el comando anterior a este repositorio (`git push --follow-tags`), una Release
+es generada automáticamente con el instalador adjunto mediante
+[una GitHub Action](https://github.com/fd-sturniolo/AntTracker/blob/main/.github/workflows/release.yml).
 
 ## Información
 
