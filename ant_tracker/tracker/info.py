@@ -287,9 +287,8 @@ class TracksCompleteInfo(TracksInfo):
                  start_time: datetime.datetime):
         self.tracks = info.tracks
 
-        self.segmenter_version = info.segmenter_version
+        self.version = info.version
         self.segmenter_parameters = info.segmenter_parameters
-        self.tracker_version = info.tracker_version
         self.tracker_parameters = info.tracker_parameters
 
         self.video_name = info.video_name

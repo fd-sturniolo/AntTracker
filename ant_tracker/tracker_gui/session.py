@@ -115,15 +115,18 @@ class SessionInfo:
 
     def save(self, path: Union[Path, str]):
         path = ensure_path(path)
-        unfinished_tracker_files: Dict[Path, Tuple[Path, Path]] = {}
+        ut_files: Dict[Path, Tuple[Path, Path]] = {}
         for file in self.videofiles:
             if self.states[file] == SessionInfo.State.Tracking:
                 vname = self.unfinished_trackers[file].video_path.name
                 closed_file = path.parent / f".{vname}.uctrk"
                 ongoing_file = path.parent / f".{vname}.uotrk"
                 self.unfinished_trackers[file].save_unfinished(closed_file, ongoing_file)
-                unfinished_tracker_files[file] = (closed_file, ongoing_file)
-            if self.states[file] != SessionInfo.State.Tracking and self.unfinished_trackers[file]:
+                ut_files[file] = (closed_file, ongoing_file)
+            if self.states[file] > SessionInfo.State.Tracking and self.unfinished_trackers[file]:
+                vname = self.unfinished_trackers[file].video_path.name
+                (path.parent / f".{vname}.uctrk").unlink(True)
+                (path.parent / f".{vname}.uotrk").unlink(True)
                 self.unfinished_trackers[file] = None
             if self.states[file] != SessionInfo.State.DetectingLeaves and self.detection_probs[file]:
                 self.detection_probs[file] = {}
@@ -135,8 +138,9 @@ class SessionInfo:
                 'states':              {str(p.name): s.name for p, s in self.states.items()},
                 'parameters':          {str(p.name): (s.encode() if s is not None else None) for p, s in
                                         self.parameters.items()},
-                'unfinished_trackers': {str(p.name): ((co[0].name, co[1].name) if co is not None else None) for p, co in
-                                        unfinished_tracker_files.items()},
+                'unfinished_trackers': {str(p.name): (ut_files[p][0].name, ut_files[p][1].name)
+                                            if p in ut_files else None
+                                                for p in self.videofiles},
                 'detection_probs':     {str(p.name): {str(i): prob for i, prob in probs.items()} for p, probs in
                                         self.detection_probs.items()},
                 'save_every_n_frames': self.save_every_n_frames,
