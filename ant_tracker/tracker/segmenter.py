@@ -3,12 +3,14 @@ import json
 import numpy as np
 import pims
 import cv2 as cv
+import scipy.ndimage
 import skimage.draw as skdraw
 import skimage.feature as skfeature
 import skimage.filters as skfilters
 import skimage.measure as skmeasure
 import skimage.morphology as skmorph
 import skimage.segmentation as skseg
+from skimage.util.dtype import img_as_float, img_as_int, img_as_uint
 import ujson
 from scipy.spatial import cKDTree
 from typing import Any, Dict, Generator, List, Tuple, TypedDict, Sequence
@@ -49,9 +51,7 @@ def kernel(r: float):
 
 def _get_mask_mog2(subt, frame: GrayscaleImage, *, params: SegmenterParameters):
     mask = subt.apply(frame)
-    objects = frame.copy()
-    objects[mask == 0] = (0)
-    _, lamina = cv.threshold(objects, 150, 255, cv.THRESH_BINARY)
+    _, lamina = cv.threshold(frame * (mask != 0), 150, 255, cv.THRESH_BINARY)
 
     mask = cv.subtract(mask, lamina)
 
@@ -72,19 +72,19 @@ def _get_mask_mog2(subt, frame: GrayscaleImage, *, params: SegmenterParameters):
 
     return mask.astype('bool')
 
-def _get_blobs_in_frame_with_steps_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters,
+def _get_blobs_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters,
                                         prev_blobs: List[Blob]):
     def empty():
-        return [], np.zeros_like(frame, dtype=float), \
-               np.zeros_like(frame, dtype=float), \
-               np.zeros_like(frame, dtype=float), \
-               np.zeros_like(frame, dtype=bool), \
-               np.zeros_like(frame, dtype='uint8')
+        return []
 
     if not movement_mask.any():
         return empty()
-    gauss = skfilters.gaussian(frame, sigma=params.gaussian_sigma)
-    log = skfilters.laplace(gauss, mask=movement_mask)
+
+    # gauss = skfilters.gaussian(frame, sigma=params.gaussian_sigma)
+    ksize = int(4.0 * params.gaussian_sigma + 0.5) * 2 + 1 # 4.0 == skimage.filters.gaussian truncate default
+    gauss = img_as_uint(cv.GaussianBlur(frame, (ksize, ksize), params.gaussian_sigma))
+    # log = skfilters.laplace(gauss, mask=movement_mask)
+    log = cv.filter2D(gauss, cv.CV_32F, np.array([0.125, -1, 0.125])) * movement_mask
 
     if not log.any():
         return empty()
@@ -94,17 +94,11 @@ def _get_blobs_in_frame_with_steps_logw(frame: GrayscaleImage, movement_mask: Bi
     except IndexError:
         print("Umbralizado fallido (no había bordes significativos en las regiones en movimiento). Salteando frame")
         return empty()
-    threshed_log = log.copy()
-    threshed_log[threshed_log > t] = 0
-
-    intensity_mask = threshed_log.copy()
-    intensity_mask[intensity_mask != 0] = True
-    intensity_mask[intensity_mask == 0] = False
+    intensity_mask = log <= t
 
     blobs: Blobs = []
     # region Watershed if there were blobs too close to eachother in last frame
     intersection_zone = np.zeros_like(frame, dtype='bool')
-    close_markers_labels = np.zeros_like(frame, dtype='uint8')
     if len(prev_blobs) > 1:
         points = np.array([[blob.center_xy.y, blob.center_xy.x] for blob in prev_blobs])
         kdt = cKDTree(points)
@@ -146,8 +140,7 @@ def _get_blobs_in_frame_with_steps_logw(frame: GrayscaleImage, movement_mask: Bi
             continue
         label: bool = p.label
         blobs.append(Blob(imshape=frame.shape, mask=(labels == label), approx_tolerance=params.approx_tolerance))
-
-    return blobs, gauss, log, threshed_log, intersection_zone, (close_markers_labels + labels)
+    return blobs
 
 def _get_blobs_in_frame_with_steps_doh(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters):
     if not movement_mask.any():
@@ -184,10 +177,6 @@ def _get_blobs_in_frame_with_steps_doh(frame: GrayscaleImage, movement_mask: Bin
         blobs.append(Blob(imshape=frame.shape, mask=(labels == label), approx_tolerance=params.approx_tolerance))
 
     return blobs, gauss, log, labels, masked_frame
-
-def _get_blobs_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters,
-                    prev_blobs: List[Blob]):
-    return _get_blobs_in_frame_with_steps_logw(frame, movement_mask, params, prev_blobs)[0]
 
 def _get_blobs_doh(frame: GrayscaleImage, movement_mask: BinaryMask, params: SegmenterParameters):
     return _get_blobs_in_frame_with_steps_doh(frame, movement_mask, params)[0]
