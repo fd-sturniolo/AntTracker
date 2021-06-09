@@ -88,7 +88,7 @@ class TrackTask:
 
     def inner_run(self, window: sg.Window, sesspath: Path, with_leaves: bool):
         send = write_event_value_closure(window)
-        session = SessionInfo.load(sesspath, with_trackers=True)
+        session = SessionInfo.load(sesspath, load_active_trackers=True)
         start_time = session.first_start_time
         for path in session.videofiles:
             p = session.parameters[path]
@@ -122,7 +122,7 @@ class TrackTask:
                     tracker = Tracker(path, LogWSegmenter(video, p.segmenter_parameters), params=p.tracker_parameters)
                     track_generator = tracker.track_progressive()
                 else:  # if session.states[path] == S.Tracking:
-                    tracker = session.unfinished_trackers[path]
+                    tracker = session.active_trackers[path]
                     send(progress_key, {'p': tracker.last_tracked_frame})
                     send(K.Report, f"{short_fn(path)}, recuperando tracking desde: "
                                    f"{tracker.last_tracked_frame}/{tracker.video_length}")

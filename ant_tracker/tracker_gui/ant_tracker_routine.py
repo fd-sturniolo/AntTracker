@@ -189,5 +189,4 @@ def ant_tracker_routine():
             session.states[file] = SessionInfo.State.GotParameters
             session.lengths[file] = len(video)
             session.save(sesspath)
-    print(f"{session.unfinished_trackers=}")
     results_overview(sesspath)
