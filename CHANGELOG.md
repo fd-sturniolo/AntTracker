@@ -1,9 +1,9 @@
-# 1.1.0
+# 1.0.3
 
 - Optimizar operaciones de detección de objetos (aprox. x2 más rápido)
 - Desinstalar archivos de versiones anteriores antes de instalar
 - Agregar opción de acceso directo en escritorio
-- Bugs en `trkviz`
+- Bugs en `trkviz`, GUI
 # 1.0.2
 
 - Corrige errores de archivos faltantes
