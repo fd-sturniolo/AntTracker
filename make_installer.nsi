@@ -38,8 +38,38 @@ Page instfiles
 UninstPage uninstConfirm
 UninstPage instfiles
 
-;--------------------------------
+!define PathUnquoteSpaces '!insertmacro PathUnquoteSpaces '
+Function PathUnquoteSpaces
+Exch $0
+Push $1
+StrCpy $1 $0 1
+StrCmp $1 '"' 0 ret
+StrCpy $1 $0 "" -1
+StrCmp $1 '"' 0 ret
+StrCpy $0 $0 -1 1
+ret:
+Pop $1
+Exch $0
+FunctionEnd
+!macro PathUnquoteSpaces var
+Push ${var}
+Call PathUnquoteSpaces
+Pop ${var}
+!macroend
 
+;--------------------------------
+; The "" makes the section hidden.
+Section "" SecUninstallPrevious
+  SectionIn RO
+  ; Check for uninstaller.
+  ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AntTracker" "Install_Dir"
+  ${If} $R0 == ""
+      Goto Done
+  ${EndIf}
+  ${PathUnquoteSpaces} $R0
+  RMDir /r $R0
+  Done:
+SectionEnd
 ; The stuff to install
 Section "AntTracker & AntLabeler (requerido)"
   SectionIn RO
@@ -61,11 +91,12 @@ Section "AntTracker & AntLabeler (requerido)"
   File /r "dist\AntTracker\*"
 
   ; Write the installation path into the registry
-  WriteRegStr HKLM SOFTWARE\AntTracker "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM "Software\AntTracker" "Install_Dir" "$INSTDIR"
 
   ; Write the uninstall keys for Windows
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AntTracker" "DisplayName" "AntTracker"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AntTracker" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AntTracker" "Install_Dir" '"$INSTDIR"'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AntTracker" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AntTracker" "NoRepair" 1
   WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -97,7 +128,7 @@ SectionEnd
 Section "Uninstall"
   ; Remove registry keys
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\AntTracker"
-  DeleteRegKey HKLM SOFTWARE\AntTracker
+  DeleteRegKey HKLM "Software\AntTracker"
 
   ; Remove files and uninstaller
   Delete "$INSTDIR\*"
