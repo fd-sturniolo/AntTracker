@@ -146,23 +146,25 @@ class TrackTask:
                 session.save(sesspath)
             send(progress_key, {'color': PB_GREEN, 'background': PB_DEEP_BLUE})
 
+            # sólo detectar hojas para tracks que van al export
+            _load_relevant = filter_func(info)
+            load_relevant_tracks = [track for track in info.tracks if _load_relevant(track)]
+            track_ids_still_undetected = [track.id for track in load_relevant_tracks if not track.load_detected]
             if with_leaves and session.states[path] == S.Finished:
-                load_relevant = filter_func(info)
-                leafstate = [track.load_detected for track in info.tracks if load_relevant(track)]
-                if not all(leafstate):
+                if track_ids_still_undetected:
                     session.states[path] = S.DetectingLeaves
-                    send(K.Report, f"{short_fn(path)}, retomando detección de hojas...")
+                    send(K.Report, f"{short_fn(path)}, cargando video...")
+                    video = pims.PyAVReaderIndexed(path)
+                    video = crop(video, crop_from_rect(video.frame_shape[0:2], crop_rect))
 
             if session.states[path] == S.DetectingLeaves:
                 if with_leaves:
                     send(K.Report, f"{short_fn(path)}, comenzando detección de hojas...")
-                    # only detect leaves for tracks that will be aggregated into export pages 1 and 2
-                    load_relevant = filter_func(info)
-                    tracks = [track for track in info.tracks if load_relevant(track)]
+                    tracks = load_relevant_tracks
                     send(progress_key, {'p': 1, 'max': len(tracks) + 1})
                     detected_ids = session.detection_probs[path].keys()
-                    send(progress_key, {'p': len(detected_ids) + 1, 'max': len(tracks) + 1})
-                    to_detect = {track.id for track in tracks} - detected_ids
+                    to_detect = set(track_ids_still_undetected) - detected_ids
+                    send(progress_key, {'p': len(tracks) - len(to_detect), 'max': len(tracks) + 1})
                     detector = TFLiteLeafDetector(C.TFLITE_MODEL, video)
                     send(K.Report, f"{short_fn(path)}, retomando detección de hojas... ")
                     for i_trk, track in enumerate(tracks):

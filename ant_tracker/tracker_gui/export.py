@@ -122,10 +122,10 @@ class Exporter:
             "Frame final",
         ])
 
-        progress_i = 0
         yield "Inicializando...", 1, 1
-        yield "Generando análisis por hormiga", progress_i, 1
+        yield "Generando análisis por hormiga", 0, 1
         for info in infos:
+            progress_i = 0
             od = partial(onedim_conversion, mm_per_pixel=info.mm_per_pixel)
             area = partial(area_conversion, mm_per_pixel=info.mm_per_pixel)
             tracks = info.filter_tracks(**C.TRACKFILTER)
@@ -149,7 +149,7 @@ class Exporter:
                         track.last_frame(),
                     ])
                 progress_i += 1
-                yield "Generando análisis por hormiga", progress_i, progress_max
+                yield f"Generando análisis por hormiga\n{info.video_name}", progress_i, progress_max
 
         # endregion
 
