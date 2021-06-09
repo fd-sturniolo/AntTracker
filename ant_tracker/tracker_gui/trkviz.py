@@ -50,6 +50,10 @@ def listbox_items(tracks: List[Track], info: TracksInfo):
 def pull_track_id(string: str):
     return int(string.split(" ")[0].split("T")[1])
 
+
+def clamp(n, smallest, largest):
+    return max(smallest, min(n, largest))
+
 def trkviz_subprocess(trk_or_tag: Union[Path, str] = None):
     import multiprocessing
     p = multiprocessing.Process(target=trkviz, args=(trk_or_tag,))
@@ -186,7 +190,7 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
                     image[rr, cc] = Colors.BLUE
 
                     # draw length & width
-                    props = blob.props()
+                    props = blob.props
                     if props:
                         y0, x0 = int(props.centroid[0]), int(props.centroid[1])
                         orientation = props.orientation
@@ -194,6 +198,10 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
                         y1 = int(y0 - math.sin(orientation) * 0.5 * props.minor_axis_length)
                         x2 = int(x0 - math.sin(orientation) * 0.5 * props.major_axis_length)
                         y2 = int(y0 - math.cos(orientation) * 0.5 * props.major_axis_length)
+                        x1 = clamp(x1, 0, info.video_shape[1]-1)
+                        x2 = clamp(x2, 0, info.video_shape[1]-1)
+                        y1 = clamp(y1, 0, info.video_shape[0]-1)
+                        y2 = clamp(y2, 0, info.video_shape[0]-1)
                         rr, cc = line(y0, x0, y1, x1)
                         image[rr, cc] = blend(image[rr, cc], Colors.RED, 0.5)
                         rr, cc = line(y0, x0, y2, x2)
