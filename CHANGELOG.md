@@ -1,3 +1,7 @@
+# 1.0.4
+
+- Fix: se pasaban máscaras con múltiples contornos a `Blob()`
+- Fix: errores al borrar videos de una session
 # 1.0.3
 
 - Optimizar operaciones de detección de objetos (aprox. x2 más rápido)
