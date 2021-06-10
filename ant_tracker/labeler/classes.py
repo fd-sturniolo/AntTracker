@@ -632,7 +632,6 @@ def first(iterable, condition=lambda x: True):
 @dataclass
 class LabelingInfo(TracksInfo):
     unlabeledFrames: List[UnlabeledFrame] = field(init=False)
-    version: Optional[Version] = field(init=False, default=None)
     _labeler_version: Optional[Version] = field(init=False, default=None)
     file_extension: ClassVar[str] = '.tag'
 
@@ -641,13 +640,11 @@ class LabelingInfo(TracksInfo):
         super(LabelingInfo, self).__init__(
             video_path=video_path,
             tracks=sorted([ant.as_track() for ant in ants], key=lambda t: t.id),
-            segmenter_version=Version("0"),
             segmenter_parameters=SegmenterParameters.mock(),
-            tracker_version=Version("0"),
             tracker_parameters=TrackerParameters.mock(),
+            version=CollectionVersion,
         )
         self.unlabeledFrames: List[UnlabeledFrame] = [uf for uf in unlabeled_frames if uf.contours]
-        self.version = CollectionVersion
 
     class Serial(TracksInfo.Serial):
         unlabeled_frames: List[UnlabeledFrame.Serial]

@@ -70,7 +70,6 @@ class UnlabeledFrame:
 class LabelingInfo(TracksInfo):
     unlabeledFrames: List[UnlabeledFrame] = field(init=False)
     labeler_version: Optional[Version] = field(init=False, default=None)
-    version: Optional[Version] = field(init=False, default=None)
     file_extension: ClassVar[str] = '.tag'
 
     def __init__(self):
@@ -79,7 +78,6 @@ class LabelingInfo(TracksInfo):
     class Serial(TracksInfo.Serial):
         unlabeled_frames: List[UnlabeledFrame.Serial]
         labeler_version: Optional[str]
-        version: Optional[str]
 
     def encode(self) -> 'LabelingInfo.Serial':
         d = {
