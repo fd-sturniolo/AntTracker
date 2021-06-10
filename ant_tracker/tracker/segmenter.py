@@ -119,14 +119,20 @@ def _get_blobs_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: Se
                 intersection_zone[rr, cc] = True
                 rr, cc = skdraw.disk((points[idx][0], points[idx][1]), int(params.minimum_ant_radius * 1.5),
                                      shape=intersection_zone.shape)
+                # Se usa un disco como marker en vez de un punto porque no necesariamente
+                # el centro del blob anterior va a caer en la región detectada.
                 close_markers_mask[rr, cc] = idx + 1
             close_markers_labels = skseg.watershed(np.zeros_like(frame), markers=close_markers_mask,
                                                    mask=intensity_mask * intersection_zone)
+            # Sin embargo, existe la posibilidad de que el watershed pinte dos regiones desconectadas del mismo color
+            # al haber usado más de un píxel como marker. En este caso, regionprops considera las regiones del mismo
+            # color como una sola (particularmente, props.area va a dar la suma de las áreas)
             props = skmeasure.regionprops(close_markers_labels)
             for p in props:
                 if p.area < minimum_ant_area(params.minimum_ant_radius):
                     continue
                 label: bool = p.label
+                # Por estas razones, `Blob()` toma el mayor de los contornos detectados en `mask`
                 blobs.append(Blob(imshape=frame.shape, mask=(close_markers_labels == label),
                                   approx_tolerance=params.approx_tolerance))
     # endregion
@@ -255,7 +261,6 @@ class Segmenter:
         n = min(self.params.movement_detection_history, from_frame_n)
         subtractor = create_subtractor(self.params.movement_detection_history)
         for frame_n in range(from_frame_n-n,from_frame_n):
-            print("updating subtractor")
             subtractor.apply(rgb2gray(self.__video[frame_n]))
         for frame_n, frame in enumerate(self.__video[from_frame_n:], from_frame_n):
             if frame_n in self.__frames_with_blobs:
