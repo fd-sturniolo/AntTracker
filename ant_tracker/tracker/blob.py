@@ -16,7 +16,7 @@ class Blob:
             contours = cv.findContours(mask.astype('uint8'), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_L1)[0]
             #! Puede venir más de un contorno, por segmenter.py:L122:135
             c = max(contours, key = cv.contourArea)
-            self.contour = np.flip(np.squeeze(cv.approxPolyDP(c, approx_tolerance, True)), axis=1)
+            self.contour = np.flip(np.squeeze(cv.approxPolyDP(c, approx_tolerance, True), axis=1), axis=1)
         elif contour is not None:
             self.contour = contour
         self.contour = _clip_contour(self.contour, imshape)
