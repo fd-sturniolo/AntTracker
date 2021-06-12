@@ -1,3 +1,7 @@
+# 1.0.6
+
+- Fix: errores en blobs con contornos pequeños
+
 # 1.0.5
 
 - Fix: valores negativos de tolerancia en aproximación
