@@ -254,7 +254,7 @@ def draw_text(image: Image_T, text: Any, pos: Position, size=20, color: Color = 
     from PIL import Image, ImageDraw, ImageFont
     text = str(text)
     font = ImageFont.truetype("arial.ttf", size=size)
-    pilimage = Image.fromarray(image.copy())
+    pilimage = Image.fromarray(image)
     draw = ImageDraw.ImageDraw(pilimage)
     draw.text((pos.x - size // 2, pos.y - size // 2), text, font=font, fill=color)
     return np.asarray(pilimage)
