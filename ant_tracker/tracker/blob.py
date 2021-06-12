@@ -16,7 +16,7 @@ class Blob:
             contours = cv.findContours(mask.astype('uint8'), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_L1)[0]
             #! Puede venir más de un contorno, por segmenter.py:L122:135
             c = max(contours, key = cv.contourArea)
-            self.contour = np.flip(np.squeeze(cv.approxPolyDP(c, approx_tolerance, True)), axis=1)
+            self.contour = np.flip(np.squeeze(cv.approxPolyDP(c, approx_tolerance, True), axis=1), axis=1)
         elif contour is not None:
             self.contour = contour
         self.contour = _clip_contour(self.contour, imshape)
@@ -79,7 +79,7 @@ class Blob:
 
     @memoized_property
     def radius(self):
-        return np.linalg.norm(self.contour - self.center, axis=1).max(initial=0)
+        return np.linalg.norm(self.contour - self.center, axis=1).max(initial=0) or 1
 
     @memoized_property
     def props(self):
@@ -94,19 +94,25 @@ class Blob:
     def length(self):
         p = self.props
         if not p: return 1
-        return p.major_axis_length
+        return p.major_axis_length or 1
 
     @property
     def width(self):
         p = self.props
         if not p: return 1
-        return p.minor_axis_length
+        return p.minor_axis_length or 1
 
     def get_mask(self):
-        from skimage.draw import polygon
-        fc = self.full_contour
-        rr, cc = polygon(fc[0], fc[1], self.shape)
+        from skimage.draw import polygon, line
+
         ret = np.zeros(self.shape, dtype=bool)
+        fc = self.full_contour
+        ret[fc[0], fc[1]] = True
+        rr, cc = polygon(fc[0], fc[1], self.shape)
+        if not len(rr):
+            rr, cc = line(fc[0][0], fc[1][0], fc[0][1], fc[1][1])
+            rr = np.clip(rr, 0, self.shape[0] - 1)
+            cc = np.clip(cc, 0, self.shape[1] - 1)
         ret[rr, cc] = True
         return ret
 
@@ -141,9 +147,8 @@ class Blob:
                      color: Optional[Color] = None, alpha=0.5,
                      filled: bool = True,
                      text: str = None, text_color: Color = Colors.BLACK) -> ColorImage:
-        import skimage.draw as skdraw
-        from .common import blend
         """Returns a copy of `img` with `self.contour` drawn"""
+        from .common import blend
         if frame_id is not None:
             color = KellyColors.get(frame_id)
             text = str(frame_id)
@@ -155,8 +160,8 @@ class Blob:
         if np.any(fc):
             copy[fc[0], fc[1]] = blend(copy[fc[0], fc[1]], color, 1)
             if filled:
-                rr, cc = skdraw.polygon(fc[0], fc[1], shape=self.shape)
-                copy[rr, cc] = blend(copy[rr, cc], color, alpha)
+                mask = self.get_mask()
+                copy[mask] = blend(copy[mask], color, alpha)
             if text is not None:
                 copy = self.draw_label(copy, text=text, color=text_color)
         return copy
@@ -173,7 +178,8 @@ class Blob:
         pos = to_tuple_flip(self.center + vector_to_center_of_img)
 
         rr, cc = skdraw.line(self.center_xy.y, self.center_xy.x, pos.y, pos.x)
-        rr, cc = np.clip(rr, 0, self.shape[0]), np.clip(cc, 0, self.shape[1])
+        rr = np.clip(rr, 0, self.shape[0] - 1)
+        cc = np.clip(cc, 0, self.shape[1] - 1)
         copy[rr, cc] = (20, 20, 20)
         copy = draw_text(copy, text=text, size=size, pos=pos, color=color)
         return copy
@@ -188,13 +194,10 @@ class Blob:
 
     @classmethod
     def make_label_image(cls, blobs: List['Blob'], imshape: Tuple[int, int]) -> GrayscaleImage:
-        import skimage.draw as skdraw
         img = np.zeros(imshape, dtype='int')
         for color, blob in enumerate(blobs, start=1):
-            fc = blob.full_contour
-            if np.any(fc):
-                rr, cc = skdraw.polygon(fc[0], fc[1], shape=imshape)
-                img[rr, cc] = color
+            mask = blob.get_mask()
+            img[mask] = color
         return img
 
     # endregion
