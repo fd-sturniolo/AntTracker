@@ -1,3 +1,4 @@
+from math import sqrt
 import PySimpleGUI as sg
 import numpy as np
 from itertools import chain
@@ -178,7 +179,7 @@ def extract_parameters_from_video(video: Video, filepath: Union[Path, str]):
         antrect2 = r_data[SelectionStep.AntFrame2]
         average_ant_diagonal = (antrect1.diagonal_length + antrect2.diagonal_length) / 2
 
-        _sp.approx_tolerance = round(0.015 * average_ant_diagonal - 0.35, 2)
+        _sp.approx_tolerance = max(1,round(0.55 * sqrt(average_ant_diagonal) - 0.87, 2))
         _sp.gaussian_sigma = round(0.08 * average_ant_diagonal + 5, 2)
         _sp.minimum_ant_radius = round(0.1 * average_ant_diagonal)
 

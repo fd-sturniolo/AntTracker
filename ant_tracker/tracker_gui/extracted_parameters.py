@@ -23,9 +23,11 @@ class SelectionStep(Enum):
 
     def next(self):
         if self != SelectionStep.Done: return SelectionStep(self.value + 1)
+        return self
 
     def back(self):
         if self != SelectionStep.First: return SelectionStep(self.value - 1)
+        return self
 
 @dataclass
 class ExtractedParameters:
