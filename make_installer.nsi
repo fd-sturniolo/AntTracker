@@ -4,7 +4,7 @@ Unicode True
 !include "StrFunc.nsh"
 ${StrLoc}
 
-!define VERSION "1.0.4" ; Se incrementa automáticamente por bump2version
+!define VERSION "1.0.5" ; Se incrementa automáticamente por bump2version
 
 LoadLanguageFile "${NSISDIR}\Contrib\Language files\Spanish.nlf"
 

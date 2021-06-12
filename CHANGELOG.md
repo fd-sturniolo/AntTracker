@@ -1,3 +1,8 @@
+# 1.0.5
+
+- Fix: valores negativos de tolerancia en aproximación
+- Fix: creación de nuevo `LabelerInfo` en AntLabeler
+
 # 1.0.4
 
 - Fix: se pasaban máscaras con múltiples contornos a `Blob()`
