@@ -1,3 +1,7 @@
+# 1.0.7
+
+- Fix: error en detección de carga para blobs pequeños
+
 # 1.0.6
 
 - Fix: errores en blobs con contornos pequeños
