@@ -21,6 +21,8 @@ def _get_blob_rect(blob: Blob, imshape: Tuple[int, int], extra_pixels: int, squa
 
 def _get_frame_slice(video: Video, blob: Blob, frame_n: int, extra_pixels: int, square=False) -> Optional[ColorImage]:
     image = video[frame_n]
+    rect = _get_blob_rect(blob, image.shape, extra_pixels, square)
+    if rect is None: return None
     x0, x1, y0, y1 = _get_blob_rect(blob, image.shape, extra_pixels, square).xxyy
     return image[y0:y1, x0:x1, :]
 
