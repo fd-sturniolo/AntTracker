@@ -122,7 +122,8 @@ class TrackTask:
                     tracker = Tracker(path, LogWSegmenter(video, p.segmenter_parameters), params=p.tracker_parameters)
                     track_generator = tracker.track_progressive()
                 else:  # if session.states[path] == S.Tracking:
-                    tracker = session.active_trackers[path]
+                    closed_file, ongoing_file = session.unfinished_trackers[path]
+                    tracker = Tracker.load_unfinished(closed_file, ongoing_file, video, path)
                     send(progress_key, {'p': tracker.last_tracked_frame})
                     send(K.Report, f"{short_fn(path)}, recuperando tracking desde: "
                                    f"{tracker.last_tracked_frame}/{tracker.video_length}")
@@ -134,8 +135,7 @@ class TrackTask:
                     if session.save_every_n_frames > 0 and frame > 0 and frame % session.save_every_n_frames == 0:
                         session.states[path] = S.Tracking
                         send(K.Report, f"{short_fn(path)}, guardando tracking hasta frame {frame}...")
-                        session.record_tracker_state(path, tracker)
-                        session.save(sesspath)
+                        session.save(sesspath, current_file_and_tracker=(path, tracker))
                     if not self._running:
                         return
                 send(K.Report, f"{short_fn(path)}, guardando tracking...")
