@@ -127,7 +127,7 @@ def _get_blobs_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: Se
             # Sin embargo, existe la posibilidad de que el watershed pinte dos regiones desconectadas del mismo color
             # al haber usado más de un píxel como marker. En este caso, regionprops considera las regiones del mismo
             # color como una sola (particularmente, props.area va a dar la suma de las áreas)
-            props = skmeasure.regionprops(close_markers_labels)
+            props = skmeasure.regionprops(close_markers_labels, cache=False)
             for p in props:
                 if p.area < minimum_ant_area(params.minimum_ant_radius):
                     continue
@@ -139,7 +139,7 @@ def _get_blobs_logw(frame: GrayscaleImage, movement_mask: BinaryMask, params: Se
 
     mask_not_intersecting = intensity_mask * (~intersection_zone)
     labels, nlabels = skmeasure.label(mask_not_intersecting, return_num=True)
-    props = skmeasure.regionprops(labels)
+    props = skmeasure.regionprops(labels, cache=False)
 
     for p in props:
         if p.area < minimum_ant_area(params.minimum_ant_radius):
@@ -173,7 +173,7 @@ def _get_blobs_in_frame_with_steps_doh(frame: GrayscaleImage, movement_mask: Bin
 
     t = skfilters.threshold_isodata(log)
     labels = skseg.watershed(log, markers=marker_mask, mask=(log < t))
-    props = skmeasure.regionprops(labels)
+    props = skmeasure.regionprops(labels, cache=False)
 
     blobs: Blobs = []
     for p in props:

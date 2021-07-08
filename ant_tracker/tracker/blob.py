@@ -38,11 +38,13 @@ class Blob:
     def center_xy(self):
         return to_tuple_flip(self.center)
 
-    @memoized_property
+    @property
     def area(self):
-        p = self.props
-        if not p: return 1
-        return p.area
+        try:
+            return self._area
+        except AttributeError:
+            self.load_props()
+            return self._area
 
     def is_fully_visible(self, percentage):
         center_rect = Side.center_rect(self.shape, percentage)
@@ -81,6 +83,19 @@ class Blob:
     def radius(self):
         return np.linalg.norm(self.contour - self.center, axis=1).max(initial=0) or 1
 
+    def load_props(self):
+        from skimage.measure import regionprops
+        mask = self.get_mask()
+        r = regionprops(mask.astype(np.uint8), cache=False)
+        if len(r) == 0:  # flat or near-flat blob
+            self._length = 1
+            self._width = 1
+            self._area = 1
+        else:
+            self._length = r[0].major_axis_length or 1
+            self._width = r[0].minor_axis_length or 1
+            self._area = r[0].area or 1
+
     @memoized_property
     def props(self):
         from skimage.measure import regionprops
@@ -92,15 +107,19 @@ class Blob:
 
     @property
     def length(self):
-        p = self.props
-        if not p: return 1
-        return p.major_axis_length or 1
+        try:
+            return self._length
+        except AttributeError:
+            self.load_props()
+            return self._length
 
     @property
     def width(self):
-        p = self.props
-        if not p: return 1
-        return p.minor_axis_length or 1
+        try:
+            return self._width
+        except AttributeError:
+            self.load_props()
+            return self._width
 
     def get_mask(self):
         from skimage.draw import polygon, line
