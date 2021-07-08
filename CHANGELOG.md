@@ -1,3 +1,7 @@
+# 1.0.8
+
+- Fix: memory leak al mantener `Tracker`s activos en `Session`
+- Fix: memory leak con `RegionProperties` de `Blob`s
 # 1.0.7
 
 - Fix: error en detección de carga para blobs pequeños
