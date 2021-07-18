@@ -12,10 +12,9 @@ def _get_blob_rect(blob: Blob, imshape: Tuple[int, int], extra_pixels: int, squa
     if y1 - y0 <= 1 or x1 - x0 <= 1: return None
     rect = blob.bbox
     if square:
-        rect = (
-            blob.bbox
-                .scale(imshape, extra_pixels=extra_pixels)
-                .square(imshape)
+        rect = (rect
+            .scale(imshape, extra_pixels=extra_pixels)
+            .square(imshape)
         )
     return rect
 

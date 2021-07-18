@@ -2,7 +2,7 @@ import numpy as np
 from memoized_property import memoized_property
 from typing import List, Optional, Tuple, TypedDict
 
-from .common import BinaryMask, Color, ColorImage, Contour, Image_T, NpPosition, Position, Rect, Side, to_array, \
+from .common import BinaryMask, Color, ColorImage, Contour, Image_T, NpPosition, Position, Rect, Side, \
     to_tuple, to_tuple_flip, Colors, GrayscaleImage
 from .kellycolors import KellyColors
 
@@ -17,9 +17,9 @@ class Blob:
             #! Puede venir más de un contorno, por segmenter.py:L122:135
             c = max(contours, key = cv.contourArea)
             self.contour = np.flip(np.squeeze(cv.approxPolyDP(c, approx_tolerance, True), axis=1), axis=1)
+            self.contour = _clip_contour(self.contour, imshape)
         elif contour is not None:
             self.contour = contour
-        self.contour = _clip_contour(self.contour, imshape)
         self.center = self.contour.mean(axis=0)
         self.shape = imshape
 
@@ -63,21 +63,17 @@ class Blob:
 
     @property
     def full_contour(self) -> Tuple[np.ndarray, np.ndarray]:
-        from skimage.draw import line, polygon_perimeter
-        if len(self.contour[:, 0]) == 1:
-            # moments_coords_central needs at least 2 points
-            return (
-                np.array([self.contour[0, 0], self.contour[0, 0]]),
-                np.array([self.contour[0, 1], self.contour[0, 1]])
-            )
-        if len(self.contour[:, 0]) == 2:
-            return line(self.contour[0, 0], self.contour[0, 1], self.contour[1, 0], self.contour[1, 1])
+        from skimage.draw import polygon_perimeter
         try:
             return polygon_perimeter(self.contour[:, 0], self.contour[:, 1], shape=self.shape, clip=True)
         except IndexError:
-            # sometimes, when near the border, polygon_perimeter fails. I tried to make it always work, but no dice
-            # so just take the original contour and get out
-            return self.contour[:, 0], self.contour[:, 1]
+            # sometimes, when near the border, polygon_perimeter fails.
+            # also when there is only a single pixel in `self.contour`
+
+            #! in <v1.0.9 contour might be out of bounds
+            #TODO: Issue #14 should fix this at the info decoding level
+            c = _clip_contour(self.contour, self.shape)
+            return c[:, 0], c[:, 1]
 
     @memoized_property
     def radius(self):
@@ -86,7 +82,7 @@ class Blob:
     def load_props(self):
         from skimage.measure import regionprops
         mask = self.get_mask()
-        r = regionprops(mask.astype(np.uint8), cache=False)
+        r = regionprops(mask.astype(np.uint8), cache=True)
         if len(r) == 0:  # flat or near-flat blob
             self._length = 1
             self._width = 1
@@ -95,6 +91,7 @@ class Blob:
             self._length = r[0].major_axis_length or 1
             self._width = r[0].minor_axis_length or 1
             self._area = r[0].area or 1
+        del r
 
     @memoized_property
     def props(self):
@@ -126,13 +123,17 @@ class Blob:
 
         ret = np.zeros(self.shape, dtype=bool)
         fc = self.full_contour
+        # vertices
         ret[fc[0], fc[1]] = True
-        rr, cc = polygon(fc[0], fc[1], self.shape)
-        if not len(rr):
-            rr, cc = line(fc[0][0], fc[1][0], fc[0][1], fc[1][1])
-            rr = np.clip(rr, 0, self.shape[0] - 1)
-            cc = np.clip(cc, 0, self.shape[1] - 1)
-        ret[rr, cc] = True
+
+        # edges
+        if len(fc[0]) > 1:
+            rr, cc = polygon(fc[0], fc[1], self.shape)
+            if not len(rr):
+                rr, cc = line(fc[0][0], fc[1][0], fc[0][1], fc[1][1])
+                rr = np.clip(rr, 0, self.shape[0] - 1)
+                cc = np.clip(cc, 0, self.shape[1] - 1)
+            ret[rr, cc] = True
         return ret
 
     # region Creation
@@ -230,8 +231,7 @@ class Blob:
 
     @classmethod
     def decode(cls, ant_as_dict: 'Blob.Serial', imshape: Tuple[int, int]) -> 'Blob':
-        contour = _clip_contour(np.array([to_array(point) for point in ant_as_dict["contour"]]), imshape)
-        return cls(contour=contour, imshape=imshape)
+        return cls(contour=np.array(ant_as_dict["contour"]), imshape=imshape)
 
     # endregion
 

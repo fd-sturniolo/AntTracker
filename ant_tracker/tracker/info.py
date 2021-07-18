@@ -372,7 +372,7 @@ class TracksCompleteInfo(TracksInfo):
                 }
 
     @classmethod
-    def decode(cls, serial: 'TracksCompleteInfo.Serial'):
+    def decode(cls, serial: 'TracksCompleteInfo.Serial') -> 'TracksCompleteInfo':
         self: 'TracksCompleteInfo' = super(TracksCompleteInfo, cls).decode(serial) # noqa
         self.mm_per_pixel = serial['mm_per_pixel']
         self.crop_rect = Rect(*serial['crop_rect'])

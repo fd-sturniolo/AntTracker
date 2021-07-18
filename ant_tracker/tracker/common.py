@@ -181,9 +181,6 @@ def flip_pair(t: Tuple[T, U]) -> Tuple[U, T]:
     """Flips a 2-ple"""
     return t[1], t[0]
 
-def to_array(point: Position) -> NpPosition:
-    return cast(NpPosition, np.array(point))
-
 def to_json(thing: Union[Dict, List]) -> str:
     return prettyjson(thing, maxlinelength=120)
 
