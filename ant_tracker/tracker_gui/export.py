@@ -1,5 +1,6 @@
 import datetime
 import numpy as np
+import os
 from functools import partial
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
@@ -99,14 +100,15 @@ class Exporter:
         list(self.export_progress(infos, time_delta))
         return self.__wb
 
-    def export_progress(self, infos: List[TracksCompleteInfo], time_delta=datetime.timedelta(minutes=1)):
+    def export_progress(self, session: SessionInfo, time_delta=datetime.timedelta(minutes=1)):
         yield "Inicializando...", 0, 1
         wb = Workbook()
-        ws = wb.active
 
-        # region Por hormiga
-        ws.title = "Por hormiga"
-        ws.append([
+        # region Sheets y headers
+
+        ant_sheet = wb.active
+        ant_sheet.title = "Por hormiga"
+        ant_sheet.append([
             "Video",
             "ID",
             "Dirección",
@@ -121,19 +123,68 @@ class Exporter:
             "Frame inicio",
             "Frame final",
         ])
+        video_sheet = wb.create_sheet("Por video")
+        video_sheet.append(["Video",
+                   "Hora Inicio",
+                   "Hora Fin",
+                   "Total hormigas entrando al nido (EN)", "",
+                   "Total hormigas saliendo del nido (SN)", "",
+                   "Velocidad promedio EN [mm/s]", "",
+                   "Velocidad promedio SN [mm/s]", "",
+                   "Área mediana EN [mm²]", "",
+                   "Área mediana SN [mm²]", "",
+                   "Largo mediana EN [mm]", "",
+                   "Largo mediana SN [mm]", "",
+                   "Ancho mediana EN [mm]", "",
+                   "Ancho mediana SN [mm]", "",
+                   ])
+        video_sheet.append(["", "", ""] + ["Cargadas", "Sin carga"] * 10)
+        merge = ['A1:A2', 'B1:B2', 'C1:C2', 'D1:E1', 'F1:G1', 'H1:I1', 'J1:K1', 'L1:M1', 'N1:O1', 'P1:Q1', 'R1:S1',
+                 'T1:U1', 'V1:W1']
+        for m in merge: video_sheet.merge_cells(m)
+        props = ('speed_mean', 'area_median', 'length_median', 'width_median')
+
+        time_sheet = wb.create_sheet("En el tiempo")
+        time_sheet.append([
+            "Hora Inicio",
+            "Hora Fin",
+            "Total hormigas entrando al nido (EN)", "",
+            "Total hormigas saliendo del nido (SN)", "",
+            "Velocidad promedio EN [mm/s]", "",
+            "Velocidad promedio SN [mm/s]", "",
+            "Área mediana EN [mm²]", "",
+            "Área mediana SN [mm²]", "",
+            "Largo mediana EN [mm]", "",
+            "Largo mediana SN [mm]", "",
+            "Ancho mediana EN [mm]", "",
+            "Ancho mediana SN [mm]", "",
+        ])
+        time_sheet.append(["", ""] + ["Cargadas", "Sin carga"] * 10)
+        merge = ['A1:A2', 'B1:B2', 'C1:D1', 'E1:F1', 'G1:H1', 'I1:J1', 'K1:L1', 'M1:N1', 'O1:P1', 'Q1:R1', 'S1:T1',
+                 'U1:V1']
+        for m in merge: time_sheet.merge_cells(m)
+
+        # endregion
 
         yield "Inicializando...", 1, 1
-        yield "Generando análisis por hormiga", 0, 1
-        for info in infos:
+        yield "Cargando información...", 0, 1
+
+        trkfiles = [session.get_trkfile(f) for f in session.videofiles]
+        start_times = {}
+        end_times = {}
+        for itrk, trkfile in enumerate(trkfiles):
+            info: TracksCompleteInfo = TracksCompleteInfo.load(trkfile)
             progress_i = 0
             od = partial(onedim_conversion, mm_per_pixel=info.mm_per_pixel)
             area = partial(area_conversion, mm_per_pixel=info.mm_per_pixel)
             tracks = info.filter_tracks(**C.TRACKFILTER)
             progress_max = len(tracks) + 1
+            # region Por hormiga
+
             for track in tracks:
                 direction = info.track_direction(track)
                 if direction != Direction.UN:
-                    ws.append([
+                    ant_sheet.append([
                         info.video_name,
                         track.id,
                         direction.name,
@@ -151,43 +202,13 @@ class Exporter:
                 progress_i += 1
                 yield f"Generando análisis por hormiga\n{info.video_name}", progress_i, progress_max
 
-        # endregion
+            # endregion
+            # region Por video
+            EN_tracks = [track for track in tracks if EN(track, info)]
+            SN_tracks = [track for track in tracks if SN(track, info)]
 
-        # region Por video
-        ws = wb.create_sheet("Por video")
-        progress_i = 0
-        progress_max = len(infos) * 16
-        yield "Generando análisis por video", progress_i, progress_max
-
-        ws.append(["Video",
-                   "Hora Inicio",
-                   "Hora Fin",
-                   "Total hormigas entrando al nido (EN)", "",
-                   "Total hormigas saliendo del nido (SN)", "",
-                   "Velocidad promedio EN [mm/s]", "",
-                   "Velocidad promedio SN [mm/s]", "",
-                   "Área mediana EN [mm²]", "",
-                   "Área mediana SN [mm²]", "",
-                   "Largo mediana EN [mm]", "",
-                   "Largo mediana SN [mm]", "",
-                   "Ancho mediana EN [mm]", "",
-                   "Ancho mediana SN [mm]", "",
-                   ])
-        ws.append(["", "", ""] + ["Cargadas", "Sin carga"] * 10)
-        merge = ['A1:A2', 'B1:B2', 'C1:C2', 'D1:E1', 'F1:G1', 'H1:I1', 'J1:K1', 'L1:M1', 'N1:O1', 'P1:Q1', 'R1:S1',
-                 'T1:U1', 'V1:W1']
-        for m in merge: ws.merge_cells(m)
-        props = ('speed_mean', 'area_median', 'length_median', 'width_median')
-
-        for info in infos:
-            filtered = info.filter_tracks(**C.TRACKFILTER)
-            EN_tracks = [track for track in filtered if EN(track, info)]
-            SN_tracks = [track for track in filtered if SN(track, info)]
-            del filtered  # to save on memory
-
-            od = partial(onedim_conversion, mm_per_pixel=info.mm_per_pixel)
-            area = partial(area_conversion, mm_per_pixel=info.mm_per_pixel)
-
+            progress_i = 0
+            progress_max = 16
             data = {'EN': {'l': {}, 'u': {}}, 'SN': {'l': {}, 'u': {}}}
             for k1, tracks in zip(('EN', 'SN'), (EN_tracks, SN_tracks)):
                 for k2, load in zip(('l', 'u'), (loaded, unloaded)):
@@ -196,9 +217,9 @@ class Exporter:
                             getattr(track, prop) for track in load(tracks)
                         ]))
                         progress_i += 1
-                        yield "Generando análisis por video", progress_i, progress_max
+                        yield f"Generando análisis por video\n{info.video_name}", progress_i, progress_max
 
-            ws.append([
+            video_sheet.append([
                 info.video_name,
                 info.start_time,
                 info.end_time,
@@ -223,77 +244,65 @@ class Exporter:
                 data['SN']['l']['width_median'],
                 data['SN']['u']['width_median'],
             ])
+            # endregion
 
-        lastrow = len(infos) + 2
-        ws.append(["Total", f"=MIN(B3:B{lastrow})", f"=MAX(C3:C{lastrow})"] +
+            start_times[trkfile] = info.start_time
+            end_times[trkfile] = info.end_time
+            global_start_time = info.start_time if itrk == 0 else min(info.start_time, global_start_time)
+            global_end_time = info.end_time if itrk == 0 else max(info.end_time, global_end_time)
+
+        lastrow = len(trkfiles) + 2
+        video_sheet.append(["Total", f"=MIN(B3:B{lastrow})", f"=MAX(C3:C{lastrow})"] +
                   [f"=SUM({c}3:{c}{lastrow})" for c in "DEFG"] +
                   [f"=AVERAGE({c}3:{c}{lastrow})" for c in "HIJKLMNOPQRSTUVW"])
-        ws.cell(lastrow + 1, 2).number_format = 'yyyy-mm-dd h:mm:ss'
-        ws.cell(lastrow + 1, 3).number_format = 'yyyy-mm-dd h:mm:ss'
+        video_sheet.cell(lastrow + 1, 2).number_format = 'yyyy-mm-dd h:mm:ss'
+        video_sheet.cell(lastrow + 1, 3).number_format = 'yyyy-mm-dd h:mm:ss'
 
-        # endregion
-
+        # TODO: esto podría ir en el loop de arriba. Se necesita primero resolver #15.
         # region En el tiempo
-        ws = wb.create_sheet("En el tiempo")
-        ws.append([
-            "Hora Inicio",
-            "Hora Fin",
-            "Total hormigas entrando al nido (EN)", "",
-            "Total hormigas saliendo del nido (SN)", "",
-            "Velocidad promedio EN [mm/s]", "",
-            "Velocidad promedio SN [mm/s]", "",
-            "Área mediana EN [mm²]", "",
-            "Área mediana SN [mm²]", "",
-            "Largo mediana EN [mm]", "",
-            "Largo mediana SN [mm]", "",
-            "Ancho mediana EN [mm]", "",
-            "Ancho mediana SN [mm]", "",
-        ])
-        ws.append(["", ""] + ["Cargadas", "Sin carga"] * 10)
-        merge = ['A1:A2', 'B1:B2', 'C1:D1', 'E1:F1', 'G1:H1', 'I1:J1', 'K1:L1', 'M1:N1', 'O1:P1', 'Q1:R1', 'S1:T1',
-                 'U1:V1']
-        for m in merge: ws.merge_cells(m)
-
-        start_time = min([info.start_time for info in infos])
-        end_time = max([info.end_time for info in infos])
-
         progress_i = 0
-        progress_max = (end_time - start_time) // time_delta + 1
+        progress_max = (global_end_time - global_start_time) // time_delta + 1
         yield "Generando análisis en el tiempo", progress_i, progress_max
-        time = start_time
-        while time < end_time:
+        time = global_start_time
+        while time < global_end_time:
             totals = {'en-load': 0, 'en-ntld': 0, 'sn-load': 0, 'sn-ntld': 0}
             speeds = {'en-load': [], 'en-ntld': [], 'sn-load': [], 'sn-ntld': []}
             areas = {'en-load': [], 'en-ntld': [], 'sn-load': [], 'sn-ntld': []}
             lengths = {'en-load': [], 'en-ntld': [], 'sn-load': [], 'sn-ntld': []}
             widths = {'en-load': [], 'en-ntld': [], 'sn-load': [], 'sn-ntld': []}
-            for info in infos:
+            for itrk, trkfile in enumerate(trkfiles):
+                start_time = start_times[trkfile]
+                end_time = end_times[trkfile]
+                #* Si no hay overlap entre el período del `info` y el período de pooling...
+                if not (min(time + time_delta, end_time) > max(time, start_time)):
+                    continue
+                #* Si ya tenemos cargado el info correspondiente a este trkfile...
+                # (puede volver a cargar infos innecesariamente si se renombran videos o trkfiles,
+                # pero salvo que intercambien nombres entre dos archivos no debería fallar)
+                if os.path.splitext(info.video_name)[0] != trkfile.stem:
+                    info: TracksCompleteInfo = TracksCompleteInfo.load(trkfile)
                 _filter = info.filter_func(**C.TRACKFILTER)
                 tracks = [track for track in info.tracks_in_time(time, time + time_delta)
                           if track.load_detected and _filter(track)]
-                if tracks:
-                    od = partial(onedim_conversion, mm_per_pixel=info.mm_per_pixel)
-                    area = partial(area_conversion, mm_per_pixel=info.mm_per_pixel)
+                if not tracks: continue
 
-                    for track in tracks:
-                        if track.load_prediction and EN(track, info):
-                            key = 'en-load'
-                        elif not track.load_prediction and EN(track, info):
-                            key = 'en-ntld'
-                        elif track.load_prediction and SN(track, info):
-                            key = 'sn-load'
-                        elif not track.load_prediction and SN(track, info):
-                            key = 'sn-ntld'
-                        else:
-                            continue
+                od = partial(onedim_conversion, mm_per_pixel=info.mm_per_pixel)
+                area = partial(area_conversion, mm_per_pixel=info.mm_per_pixel)
 
-                        totals[key] += 1
-                        speeds[key].append(od(track.speed_mean))
-                        areas[key].append(area(track.area_median))
-                        lengths[key].append(od(track.length_median))
-                        widths[key].append(od(track.width_median))
+                for track in tracks:
+                    direction = info.track_direction(track)
+                    if direction == Direction.UN:
+                        continue
+                    key = (   ('en' if direction == Direction.EN else 'sn') +
+                        '-' + ('load' if track.load_prediction else 'ntld'))
 
-            ws.append([
+                    totals[key] += 1
+                    speeds[key].append(od(track.speed_mean))
+                    areas[key].append(area(track.area_median))
+                    lengths[key].append(od(track.length_median))
+                    widths[key].append(od(track.width_median))
+
+            time_sheet.append([
                 time,
                 time + time_delta,
                 totals['en-load'],
@@ -337,19 +346,3 @@ class Exporter:
 
         self.__wb = wb
         yield "Finalizado", 1, 1
-
-if __name__ == '__main__':
-    sesspath = Path("../tracker/vid_tags/Prueba 1 AntTracker 4-Dic-2020/.anttrackersession")
-    session = SessionInfo.load(sesspath)
-    trkfiles = [session.get_trkfile(f) for f in session.videofiles]
-    e = Exporter()
-    for t, i, mx in e.export_progress([TracksCompleteInfo.load(f) for f in trkfiles]):
-        print(t, f"{i}/{mx}")
-
-    file = sesspath.parent / "export.xlsx"
-    while True:
-        try:
-            e.save(file)
-            break
-        except PermissionError:
-            input(f"El archivo {file} está abierto o protegido. Presione Enter para probar nuevamente")

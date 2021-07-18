@@ -288,15 +288,9 @@ def results_overview(sesspath: Path, with_leaves=True):
                 threading.Thread(target=wait_n_update, daemon=True).start()
         elif event == K.Export:
             session = SessionInfo.load(sesspath)
-            trkfiles = [session.get_trkfile(f) for f in session.videofiles]
-            infos = []
             title = "Exportando..."
-            sg.OneLineProgressMeter(title, 0, len(trkfiles), 'XP', "Cargando tracks...")
-            for i_f, f in enumerate(trkfiles, 1):
-                infos.append(TracksCompleteInfo.load(f))
-                sg.OneLineProgressMeter(title, i_f, len(trkfiles), 'XP', "Cargando tracks...")
             ex = Exporter()
-            for msg, progress, progmax in ex.export_progress(infos):
+            for msg, progress, progmax in ex.export_progress(session):
                 sg.OneLineProgressMeter(title, progress, progmax, 'XP', msg)
             while True:
                 try:
