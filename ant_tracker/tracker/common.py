@@ -163,7 +163,7 @@ def crop_from_rect(imshape: Tuple[int, int], crop_rect: Rect):
     xright = whole_rect.bottomright.x - crop_rect.bottomright.x
     ytop = crop_rect.topleft.y - whole_rect.topleft.y
     ybot = whole_rect.bottomright.y - crop_rect.bottomright.y
-    return (ytop, ybot), (xleft, xright), (0, 0)
+    return (ytop, ybot+1), (xleft, xright+1), (0, 0)
 
 def to_tuple(point: NpPosition, cast_to_int=True) -> Position:
     p = point.astype(int) if cast_to_int else point

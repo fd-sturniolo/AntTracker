@@ -243,10 +243,14 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
                     update(0)
                 else:
                     window[K.TrackList].update(set_to_index=0)
-                    selected_ant = info.tracks[0]
-                    minframe = selected_ant.first_frame()
-                    maxframe = selected_ant.last_frame()
-                    # displayed_prob = detector.probability(selected_ant)
+                    if len(info.tracks) > 0:
+                        selected_ant = info.tracks[0]
+                        minframe = selected_ant.first_frame()
+                        maxframe = selected_ant.last_frame()
+                        # displayed_prob = detector.probability(selected_ant)
+                    else:
+                        selected_ant = None;
+                        minframe = maxframe = 0;
                     slider = K.FrameSlider2
                     window[slider].update(value=minframe, range=(minframe, maxframe))
                     update = update_ant_pic
@@ -264,14 +268,15 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
                     window[slider].update(value=current_frame + 1)
                     update(current_frame + 1)
             elif event == K.TrackList:
-                i = pull_track_id(values[event][0])
-                track = Track.get(info.tracks, i)
-                selected_ant = track
-                minframe = selected_ant.first_frame()
-                maxframe = selected_ant.last_frame()
-                window[slider].update(value=minframe, range=(minframe, maxframe))
-                # displayed_prob = detector.probability(selected_ant)
-                update_ant_pic(minframe)
+                if len(values[event]):
+                    i = pull_track_id(values[event][0])
+                    track = Track.get(info.tracks, i)
+                    selected_ant = track
+                    minframe = selected_ant.first_frame()
+                    maxframe = selected_ant.last_frame()
+                    window[slider].update(value=minframe, range=(minframe, maxframe))
+                    # displayed_prob = detector.probability(selected_ant)
+                    update_ant_pic(minframe)
     finally:
         LoadingWindow.close_all()
 
