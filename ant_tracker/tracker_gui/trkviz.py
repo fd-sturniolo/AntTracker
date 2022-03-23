@@ -211,7 +211,7 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
 
         selected_ant = None
         minframe = 0
-        maxframe = info.video_length
+        maxframe = info.video_length - 1
         update = update_current_frame
         slider = K.FrameSlider
         update_current_frame(0)
@@ -236,7 +236,7 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
                 window[K.Tab2].set_focus(False)
                 if values[event] == K.Tab1:
                     minframe = 0
-                    maxframe = info.video_length
+                    maxframe = info.video_length - 1
                     slider = K.FrameSlider
                     update = update_current_frame
                     window[slider].update(value=minframe, range=(minframe, maxframe))
