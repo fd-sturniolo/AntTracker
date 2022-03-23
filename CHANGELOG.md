@@ -1,3 +1,6 @@
+# 1.0.10
+- Correcciones en `trkviz`
+
 # 1.0.9
 
 - Optimizaciones de memoria en exportación
