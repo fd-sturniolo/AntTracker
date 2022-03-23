@@ -119,9 +119,8 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
                         sg.Slider(orientation='h', enable_events=True, k=K.FrameSlider2),
                         sg.B("▶", k=K.FrameForw2)
                     ],
-                ])
-            ]
-
+                ], element_justification='center', expand_x=True
+            )]
         ]
         allvideolayout = [
             [sg.Column([
@@ -131,7 +130,7 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
                     sg.Slider(orientation='h', enable_events=True, k=K.FrameSlider),
                     sg.B("▶", k=K.FrameForw)
                 ],
-            ], expand_x=True,
+            ], element_justification='center', expand_x=True,
             )]
         ]
         layout = [
@@ -148,6 +147,7 @@ def trkviz(trk_or_tag: Union[Path, str] = None):
         window[K.FrameSlider].update(range=(0, info.video_length - 1))
         window[K.FrameSlider].update(value=0)
         window[K.FrameSlider].expand(expand_x=True)
+        window[K.FrameSlider2].expand(expand_x=True)
 
         def empty_frame():
             return np.ones(info.video_shape + (3,), dtype='uint8') * 255

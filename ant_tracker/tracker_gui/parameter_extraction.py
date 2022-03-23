@@ -17,14 +17,29 @@ class MyGraph(sg.Graph):
     def __init__(self, imshape, *args, **kwargs):
         import screeninfo
 
-        screen_height = max([monitor.height for monitor in screeninfo.get_monitors()])
+        screen_height = min([monitor.height for monitor in screeninfo.get_monitors()])
+        screen_width = min([monitor.width for monitor in screeninfo.get_monitors()])
+        video_height = imshape[0]
+        video_width = imshape[1]
 
-        self.video_scale = (screen_height - 250) / imshape[0]
+        ideal_video_height = screen_height * 0.70
+        ideal_video_width = screen_width * 0.65
+
+        height_scale = ideal_video_height / video_height
+        width_scale = ideal_video_width / video_width
+
+        # If scaling width to ideal makes the height go over, scale by height instead
+        if video_height*width_scale > ideal_video_height:
+            self.video_scale = height_scale
+        # Otherwise, do scale by width
+        else:
+            self.video_scale = width_scale
+
         self.default_line_width = np.ceil(1 / self.video_scale)
-        graph_shape = int(imshape[1] * self.video_scale), int(imshape[0] * self.video_scale)
+        graph_shape = int(video_width * self.video_scale), int(video_height * self.video_scale)
         self.frame_id = None
 
-        super(MyGraph, self).__init__(graph_shape, (0, imshape[0] - 1), (imshape[1] - 1, 0), *args, **kwargs)
+        super(MyGraph, self).__init__(graph_shape, (0, video_height - 1), (video_width - 1, 0), *args, **kwargs)
 
     def draw_frame(self, frame: np.ndarray):
         from PIL import Image
